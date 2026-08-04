@@ -207,6 +207,18 @@ static void stage_start(StageInfo *stage) {
 
 	global.plr.power_stored = clamp(global.plr.power_stored, 0, PLR_MAX_POWER_STORED);
 
+	if(start_override_pending && global.replay.input.replay == NULL) {
+		uint32_t f = start_override.flags;
+		if(f & STAGE_START_OVERRIDE_LIVES) global.plr.lives = start_override.lives;
+		if(f & STAGE_START_OVERRIDE_BOMBS) global.plr.bombs = start_override.bombs;
+		if(f & STAGE_START_OVERRIDE_LIFE_FRAGMENTS) global.plr.life_fragments = start_override.life_fragments;
+		if(f & STAGE_START_OVERRIDE_BOMB_FRAGMENTS) global.plr.bomb_fragments = start_override.bomb_fragments;
+		if(f & STAGE_START_OVERRIDE_POWER) global.plr.power_stored = clamp(start_override.power, 0, PLR_MAX_POWER_STORED);
+		if(f & STAGE_START_OVERRIDE_PIV) global.plr.point_item_value = start_override.point_item_value;
+		if(f & STAGE_START_OVERRIDE_SCORE) global.plr.points = start_override.score;
+		if(f & STAGE_START_OVERRIDE_GRAZE) global.plr.graze = start_override.graze;
+	}
+
 	reset_all_sfx();
 }
 

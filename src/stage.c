@@ -998,7 +998,9 @@ static LogicFrameAction stage_logic_frame(void *arg) {
 	StageFrameState *fstate = arg;
 	StageInfo *stage = fstate->stage;
 
-	stage_update_fps(fstate);
+	if(!global.is_simulation) {
+		stage_update_fps(fstate);
+	}
 
 	if(watchdog_signaled() && !stage_is_demo_mode()) {
 		global.gameover = GAMEOVER_ABORT;
@@ -1012,6 +1014,7 @@ static LogicFrameAction stage_logic_frame(void *arg) {
 	fapproach_asymptotic_p(&fstate->view_shake, 0, 0.05, 1e-2);
 
 	if(
+		!global.is_simulation &&
 		global.replay.input.replay == NULL &&
 		fstate->dynstage_generation != dynstage_get_generation()
 	) {
@@ -1022,7 +1025,10 @@ static LogicFrameAction stage_logic_frame(void *arg) {
 
 	if(global.gameover == GAMEOVER_TRANSITIONING) {
 		// Usually stage_comain will do this
-		events_poll(NULL, 0);
+		// events_poll(NULL, 0);
+		if(!global.is_simulation) {
+			events_poll(NULL, 0);
+		}
 	} else {
 		cosched_run_tasks(&fstate->sched);
 		update_all_sfx();

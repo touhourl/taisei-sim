@@ -851,6 +851,7 @@ void stage_finish(int gameover) {
 	}
 
 	if(
+		!global.is_simulation &&
 		global.replay.input.replay == NULL &&
 		prev_gameover != GAMEOVER_SCORESCREEN &&
 		(gameover == GAMEOVER_SCORESCREEN || gameover == GAMEOVER_WIN)
@@ -1402,7 +1403,7 @@ void stage_end_loop(void *ctx) {
 }
 
 void stage_unlock_bgm(const char *bgm) {
-	if(global.replay.input.replay == NULL && !global.plr.stats.total.continues_used) {
+	if(!global.is_simulation && global.replay.input.replay == NULL && !global.plr.stats.total.continues_used) {
 		progress_unlock_bgm(bgm);
 	}
 }

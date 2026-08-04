@@ -93,6 +93,10 @@ static void *sync_task(void *arg) {
 }
 
 void taisei_commit_persistent_data(void) {
+	if(global.is_simulation) {
+		return;
+	}
+
 	if(!SDL_CompareAndSwapAtomicInt(&syncing_data, 0, 1)) {
 		log_warn("Commit already in progress");
 		return;

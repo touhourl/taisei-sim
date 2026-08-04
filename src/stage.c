@@ -1128,6 +1128,9 @@ static void stage_preload_stub_proc(ResourceGroup *rg) { }
 static void process_input(StageFrameState *fstate) {
 	if(global.replay.input.replay != NULL) {
 		replay_input(fstate);
+	} else if(external_input.hook != NULL) {
+		external_input.hook(external_input.userdata);
+		player_applymovement(&global.plr);
 	} else {
 		stage_input(fstate);
 	}

@@ -1244,9 +1244,23 @@ static void _stage_enter(
 		start_time = (uint64_t)time(0);
 		seed = makeseed();
 
-		StageProgress *p = NOT_NULL(stageinfo_get_progress(stage, global.diff, true));
-		progress_register_stage_played(p, global.plr.mode);
+		if(start_override_pending) {
+			if(start_override.flags & STAGE_START_OVERRIDE_START_TIME) {
+				start_time = start_override.start_time;
+			}
+			if(start_override.flags & STAGE_START_OVERRIDE_SEED) {
+				seed = start_override.seed;
+			}
+		}
+
+		if(!global.is_simulation) {
+			StageProgress *p = NOT_NULL(stageinfo_get_progress(stage, global.diff, true));
+			progress_register_stage_played(p, global.plr.mode);
+		}
 	}
+
+	start_override = (typeof(start_override)) {};
+	start_override_pending = false;
 
 	rng_seed(&global.rand_game, seed);
 

@@ -1058,15 +1058,17 @@ void boss_finish_current_attack(Boss *boss) {
 		boss_give_spell_bonus(boss, boss->current, &global.plr);
 
 		if(!attack_was_failed(boss->current)) {
-			StageProgress *p = get_spellstage_progress(boss->current, NULL, true);
+			if(!global.is_simulation) {
+				StageProgress *p = get_spellstage_progress(boss->current, NULL, true);
 
-			if(p) {
-				progress_register_stage_cleared(p, global.plr.mode);
-			}
+				if(p) {
+					progress_register_stage_cleared(p, global.plr.mode);
+				}
 
-			// HACK
-			if(spell_is_overload(boss->current->info)) {
-				stage_unlock_bgm("bonus0");
+				// HACK
+				if(spell_is_overload(boss->current->info)) {
+					stage_unlock_bgm("bonus0");
+				}
 			}
 		} else if(boss->current->type != AT_ExtraSpell) {
 			boss->failed_spells++;
@@ -1397,18 +1399,20 @@ void boss_start_next_attack(Boss *b, Attack *a) {
 	b->current = a;
 	log_debug("[%i] %s", global.frames, a->name);
 
-	StageInfo *i;
-	StageProgress *p = get_spellstage_progress(a, &i, true);
+	if(!global.is_simulation) {
+		StageInfo *i;
+		StageProgress *p = get_spellstage_progress(a, &i, true);
 
-	if(p) {
-		if(!p->unlocked) {
-			char title[STAGE_MAX_TITLE_SIZE];
-			stagetitle_format_localized(&i->title, sizeof(title), title);
-			log_info("Spellcard unlocked! %s: %s", title, _(i->subtitle));
-			p->unlocked = true;
+		if(p) {
+			if(!p->unlocked) {
+				char title[STAGE_MAX_TITLE_SIZE];
+				stagetitle_format_localized(&i->title, sizeof(title), title);
+				log_info("Spellcard unlocked! %s: %s", title, _(i->subtitle));
+				p->unlocked = true;
+			}
+
+			progress_register_stage_played(p, global.plr.mode);
 		}
-
-		progress_register_stage_played(p, global.plr.mode);
 	}
 
 	// This should go before a->rule(b,EVENT_BIRTH), so it doesn’t reset values set by the attack rule.

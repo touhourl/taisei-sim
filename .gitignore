@@ -15,4 +15,7 @@ __pycache__
 *-autosave.kra
 *.swp
 .VERSION
+.venv
 subprojects/.wraplock
+rust/target
+episode.tsr

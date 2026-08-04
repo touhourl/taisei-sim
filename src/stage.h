@@ -44,6 +44,23 @@ typedef enum StageStartOverrideFlag {
 	STAGE_START_OVERRIDE_SCORE = (1u << 8),
 	STAGE_START_OVERRIDE_GRAZE = (1u << 9),
 } StageStartOverrideFlag;
+
+typedef struct StageStartOverride {
+	uint32_t flags;
+	uint64_t seed;
+	uint64_t start_time;
+	int lives;
+	int bombs;
+	int life_fragments;
+	int bomb_fragments;
+	int power;
+	uint point_item_value;
+	uint64_t score;
+	uint graze;
+} StageStartOverride;
+
+// Applies to the next non-replay stage only and is consumed by stage_enter().
+void stage_set_start_override(const StageStartOverride *override);
 void stage_finish(int gameover);
 void stage_gameover(void);
 

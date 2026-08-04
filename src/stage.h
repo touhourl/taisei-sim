@@ -31,6 +31,19 @@ void stage_enter(StageInfo *stage, ResourceGroup *rg, CallChain next);
 
 typedef void (*StageExternalInputHook)(void *userdata);
 void stage_set_external_input_hook(StageExternalInputHook hook, void *userdata);
+
+typedef enum StageStartOverrideFlag {
+	STAGE_START_OVERRIDE_SEED = (1u << 0),
+	STAGE_START_OVERRIDE_START_TIME = (1u << 1),
+	STAGE_START_OVERRIDE_LIVES = (1u << 2),
+	STAGE_START_OVERRIDE_BOMBS = (1u << 3),
+	STAGE_START_OVERRIDE_LIFE_FRAGMENTS = (1u << 4),
+	STAGE_START_OVERRIDE_BOMB_FRAGMENTS = (1u << 5),
+	STAGE_START_OVERRIDE_POWER = (1u << 6),
+	STAGE_START_OVERRIDE_PIV = (1u << 7),
+	STAGE_START_OVERRIDE_SCORE = (1u << 8),
+	STAGE_START_OVERRIDE_GRAZE = (1u << 9),
+} StageStartOverrideFlag;
 void stage_finish(int gameover);
 void stage_gameover(void);
 

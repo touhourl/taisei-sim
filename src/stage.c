@@ -54,6 +54,29 @@ typedef struct StageFrameState {
 
 static StageFrameState *_current_stage_state;  // TODO remove this shitty hack
 
+static struct {
+	StageExternalInputHook hook;
+	void *userdata;
+} external_input;
+
+static StageStartOverride start_override;
+static bool start_override_pending;
+
+void stage_set_external_input_hook(StageExternalInputHook hook, void *userdata) {
+	external_input.hook = hook;
+	external_input.userdata = userdata;
+}
+
+void stage_set_start_override(const StageStartOverride *override) {
+	if(override) {
+		start_override = *override;
+		start_override_pending = true;
+	} else {
+		start_override = (typeof(start_override)) {};
+		start_override_pending = false;
+	}
+}
+
 #define BGM_FADE_LONG (2.0 * FADE_TIME / (double)FPS)
 #define BGM_FADE_SHORT (FADE_TIME / (double)FPS)
 

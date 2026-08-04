@@ -28,6 +28,9 @@ typedef struct StageClearBonus {
 } StageClearBonus;
 
 void stage_enter(StageInfo *stage, ResourceGroup *rg, CallChain next);
+
+typedef void (*StageExternalInputHook)(void *userdata);
+void stage_set_external_input_hook(StageExternalInputHook hook, void *userdata);
 void stage_finish(int gameover);
 void stage_gameover(void);
 

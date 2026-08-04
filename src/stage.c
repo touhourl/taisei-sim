@@ -373,6 +373,11 @@ static void gameover_menu_result(CallChainResult ccr) {
 }
 
 void stage_gameover(void) {
+	if(global.is_simulation) {
+		stage_finish(GAMEOVER_DEFEAT);
+		return;
+	}
+
 	if(global.stage->type == STAGE_SPELL && config_get_int(CONFIG_SPELLSTAGE_AUTORESTART)) {
 		auto fstate = _current_stage_state;
 		if(fstate->quicksave) {
@@ -1066,9 +1071,17 @@ static LogicFrameAction stage_logic_frame(void *arg) {
 		update_transition();
 	}
 
-	if(global.replay.input.replay == NULL) {
+	if(global.replay.input.replay == NULL && !global.is_simulation) {
 		StageProgress *p = NOT_NULL(stageinfo_get_progress(fstate->stage, global.diff, true));
 		progress_register_hiscore(p, global.plr.mode, global.plr.points);
+	}
+
+	if(
+		global.is_simulation &&
+		global.gameover == GAMEOVER_SCORESCREEN &&
+		global.frames - global.gameover_time > GAMEOVER_SCORE_DELAY
+	) {
+		stage_finish(GAMEOVER_WIN);
 	}
 
 	if(fstate->quickload_requested) {

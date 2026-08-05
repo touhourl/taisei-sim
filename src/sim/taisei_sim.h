@@ -223,3 +223,60 @@ typedef struct TaiseiSimAction {
     uint32_t buttons;
 } TaiseiSimAction;
 
+typedef struct TaiseiSimPlayerState {
+    TaiseiSimVec2 position;
+    TaiseiSimVec2 previous_position;
+    TaiseiSimVec2 velocity;
+    uint32_t input_flags;
+    uint32_t focused;
+    uint32_t shooting;
+    int32_t lives;
+    int32_t bombs;
+    int32_t life_fragments;
+    int32_t bomb_fragments;
+    int32_t stored_power;
+    int32_t effective_power;
+    uint32_t point_item_value;
+    uint64_t score;
+    uint32_t graze;
+    uint32_t voltage;
+    uint32_t invulnerable;
+    uint32_t recovering;
+    uint32_t alive;
+    int32_t death_timer;
+    int32_t respawn_timer;
+    int32_t recovery_timer;
+    uint32_t bomb_active;
+    double bomb_progress;
+    int32_t bomb_trigger_frame;
+    int32_t bomb_end_frame;
+    uint32_t power_surge_active;
+    float power_surge_positive;
+    float power_surge_negative;
+    uint8_t player_character;
+    uint8_t shot_mode;
+    uint16_t reserved;
+} TaiseiSimPlayerState;
+
+typedef struct TaiseiSimBossState {
+    uint32_t active;
+    TaiseiSimVec2 position;
+    TaiseiSimVec2 velocity;
+    float hp;
+    float max_hp;
+    uint32_t invulnerable;
+    int32_t phase_index;
+    uint32_t phase_type;
+    uint16_t attack_id;
+    uint16_t spell_id;
+    uint32_t spell_active;
+    int32_t phase_start_frame;
+    int32_t phase_end_frame;
+    int32_t phase_timeout_frames;
+    int32_t remaining_timeout_frames;
+    int32_t spell_failed_frame;
+    uint32_t spell_failed;
+    uint32_t spell_captured;
+    float recent_damage;
+} TaiseiSimBossState;
+

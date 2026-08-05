@@ -36,7 +36,9 @@ void eventloop_enter(void *context, LogicFrameFunc frame_logic, RenderFrameFunc 
 	frame->frametime = HRTIME_RESOLUTION / target_fps;
 	frame->prev_logic_action = LFRAME_WAIT;
 
-	vfs_sync(VFS_SYNC_STORE, NO_CALLCHAIN);
+	if(!global.is_simulation) {
+		vfs_sync(VFS_SYNC_STORE, NO_CALLCHAIN);
+	}
 }
 
 void eventloop_leave(void) {

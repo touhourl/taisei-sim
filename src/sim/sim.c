@@ -171,3 +171,41 @@ static uint16_t stage_type(StageType type) {
     return TAISEI_SIM_STAGE_UNKNOWN;
 }
 
+static void fill_boss_state(TaiseiSim *sim, TaiseiSimBossState *out) {
+    *out = (TaiseiSimBossState) {};
+
+    Boss *boss = global.boss;
+    if(!boss) {
+        out->phase_index = -1;
+        return;
+    }
+
+    out->active = true;
+    out->position = vec2_from_complex(boss->pos);
+    out->velocity = vec2_from_complex(boss->move.velocity);
+    out->invulnerable = !boss_is_vulnerable(boss);
+    out->recent_damage = sim->recent_boss_damage;
+
+    Attack *attack = boss->current;
+    if(!attack) {
+        out->phase_index = -1;
+        return;
+    }
+
+    ptrdiff_t phase_index = attack - boss->attacks;
+    out->phase_index = (phase_index >= 0 && phase_index < BOSS_MAX_ATTACKS) ? (int32_t)phase_index : -1;
+    out->phase_type = boss_phase_type(attack);
+    out->attack_id = out->phase_index >= 0 ? (uint16_t)(out->phase_index + 1) : 0;
+    out->spell_id = stable_spell_id(attack);
+    out->spell_active = ATTACK_IS_SPELL(attack->type) && attack_is_active(attack);
+    out->hp = attack->hp;
+    out->max_hp = attack->maxhp;
+    out->phase_start_frame = attack->starttime;
+    out->phase_end_frame = attack->endtime;
+    out->phase_timeout_frames = attack->timeout;
+    out->remaining_timeout_frames = max(0, attack->starttime + attack->timeout - global.frames);
+    out->spell_failed_frame = attack->failtime;
+    out->spell_failed = attack_was_failed(attack);
+    out->spell_captured = ATTACK_IS_SPELL(attack->type) && attack_has_finished(attack) && !attack_was_failed(attack);
+}
+

@@ -132,3 +132,37 @@ TaiseiSimResult taisei_sim_runtime_init(const TaiseiSimGlobalConfig *config, cha
     return TAISEI_SIM_OK;
 }
 
+void taisei_sim_runtime_shutdown(void) {
+    if(!runtime_initialized) {
+        return;
+    }
+
+    dynstage_shutdown();
+    i18n_shutdown();
+    r_release_resources();
+    res_shutdown();
+    watchdog_shutdown();
+    progress_unload();
+    stage_objpools_shutdown();
+    gamemode_shutdown();
+    taskmgr_global_shutdown();
+    bgm_shutdown();
+    audio_shutdown();
+    r_models_shutdown();
+    r_sprite_batch_shutdown();
+    video_shutdown();
+    gamepad_shutdown();
+    stageinfo_shutdown();
+    config_shutdown();
+    filewatch_shutdown();
+    vfs_shutdown();
+    events_shutdown();
+    time_shutdown();
+    coroutines_shutdown();
+    log_queue_shutdown();
+    thread_shutdown();
+    log_shutdown();
+    SDL_Quit();
+
+    runtime_initialized = false;
+}

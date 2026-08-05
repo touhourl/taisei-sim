@@ -43,4 +43,9 @@ void eventloop_enter(
 
 void eventloop_run(void);
 
+// Runs exactly one  frame
+// Returns LFRAME_STOP if the loop is inactive
+LogicFrameAction eventloop_step_logic(void);
+bool eventloop_is_active(void);
+
 FrameTimes eventloop_get_frame_times(void);

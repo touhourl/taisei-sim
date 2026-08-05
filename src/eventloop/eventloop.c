@@ -56,6 +56,41 @@ void eventloop_leave(void) {
 	}
 }
 
+bool eventloop_is_active(void) {
+	return evloop.stack_ptr != NULL;
+}
+
+LogicFrameAction eventloop_step_logic(void) {
+	assert(thread_current_is_main());
+
+	LoopFrame *frame = evloop.stack_ptr;
+	if(frame == NULL) {
+		return LFRAME_STOP;
+	}
+
+	evloop.frame_times.target = frame->frametime;
+	evloop.frame_times.start = time_get();
+	evloop.frame_times.next = evloop.frame_times.start + evloop.frame_times.target;
+
+	LogicFrameAction action = run_logic_frame(frame);
+
+	// When simulating, we shouldn't get into menus.
+	// Defensive programming.
+	while(evloop.stack_ptr != frame && evloop.stack_ptr != NULL) {
+		frame = evloop.stack_ptr;
+		action = run_logic_frame(frame);
+	}
+
+	if(action == LFRAME_STOP) {
+		eventloop_leave();
+		if(evloop.stack_ptr == NULL) {
+			return LFRAME_STOP;
+		}
+	}
+
+	return action;
+}
+
 FrameTimes eventloop_get_frame_times(void) {
 	return evloop.frame_times;
 }

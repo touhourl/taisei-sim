@@ -395,3 +395,39 @@ typedef struct TaiseiSimStateBuffers {
     uint32_t laser_point_capacity;
 } TaiseiSimStateBuffers;
 
+TAISEI_SIM_API uint32_t taisei_sim_api_version(void);
+TAISEI_SIM_API uint64_t taisei_sim_abi_fingerprint(void);
+TAISEI_SIM_API TaiseiSimResult taisei_sim_global_init(const TaiseiSimGlobalConfig *config);
+TAISEI_SIM_API TaiseiSimResult taisei_sim_global_shutdown(void);
+TAISEI_SIM_API TaiseiSimResult taisei_sim_create(const TaiseiSimConfig *config, TaiseiSim **out_sim);
+TAISEI_SIM_API TaiseiSimResult taisei_sim_reset(TaiseiSim *sim, const TaiseiSimEpisodeConfig *episode);
+TAISEI_SIM_API TaiseiSimResult taisei_sim_step(TaiseiSim *sim, const TaiseiSimAction *action, uint32_t frame_count);
+// frame_count may be zero.. 
+// Terminates a running episode.
+TAISEI_SIM_API TaiseiSimResult taisei_sim_abort(TaiseiSim *sim);
+
+TAISEI_SIM_API TaiseiSimResult taisei_sim_get_state(TaiseiSim *sim, TaiseiSimState *out_state, const TaiseiSimStateBuffers *buffers);
+// Saves the replay for log.
+TAISEI_SIM_API TaiseiSimResult taisei_sim_save_replay(TaiseiSim *sim, const char *path);
+TAISEI_SIM_API TaiseiSimResult taisei_sim_destroy(TaiseiSim *sim);
+
+TAISEI_SIM_API const char *taisei_sim_last_error(const TaiseiSim *sim);
+
+TAISEI_SIM_API size_t taisei_sim_sizeof_vec2(void);
+TAISEI_SIM_API size_t taisei_sim_sizeof_global_config(void);
+TAISEI_SIM_API size_t taisei_sim_sizeof_config(void);
+TAISEI_SIM_API size_t taisei_sim_sizeof_episode_config(void);
+TAISEI_SIM_API size_t taisei_sim_sizeof_action(void);
+TAISEI_SIM_API size_t taisei_sim_sizeof_state(void);
+TAISEI_SIM_API size_t taisei_sim_sizeof_state_buffers(void);
+TAISEI_SIM_API size_t taisei_sim_sizeof_player_state(void);
+TAISEI_SIM_API size_t taisei_sim_sizeof_boss_state(void);
+TAISEI_SIM_API size_t taisei_sim_sizeof_projectile_state(void);
+TAISEI_SIM_API size_t taisei_sim_sizeof_enemy_state(void);
+TAISEI_SIM_API size_t taisei_sim_sizeof_item_state(void);
+TAISEI_SIM_API size_t taisei_sim_sizeof_laser_state(void);
+TAISEI_SIM_API size_t taisei_sim_sizeof_laser_point(void);
+
+#ifdef __cplusplus
+}
+#endif

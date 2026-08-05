@@ -1,0 +1,116 @@
+/*
+ * C API for headless Taisei simulations.
+ *
+ * It is self contained.
+ * For coordinates use Taisei's 480x560 playfield with (0, 0) at
+ * the top-left, +x to the right, and +y downward.
+ */
+#pragma once
+
+#include <stddef.h>
+#include <stdint.h>
+
+#if defined(_WIN32)
+# if defined(TAISEI_SIM_BUILD)
+#  define TAISEI_SIM_API __declspec(dllexport)
+# else
+#  define TAISEI_SIM_API __declspec(dllimport)
+# endif
+#elif defined(__GNUC__)
+# define TAISEI_SIM_API __attribute__((visibility("default")))
+#else
+# define TAISEI_SIM_API
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#define TAISEI_SIM_API_VERSION UINT32_C(1)
+#define TAISEI_SIM_USE_DEFAULT_I32 INT32_C(-2147483647)
+#define TAISEI_SIM_USE_DEFAULT_U64 UINT64_MAX
+
+#define TAISEI_SIM_VIEWPORT_WIDTH 480.0
+#define TAISEI_SIM_VIEWPORT_HEIGHT 560.0
+
+#define TAISEI_SIM_ACTION_UP      (UINT32_C(1) << 0)
+#define TAISEI_SIM_ACTION_DOWN    (UINT32_C(1) << 1)
+#define TAISEI_SIM_ACTION_LEFT    (UINT32_C(1) << 2)
+#define TAISEI_SIM_ACTION_RIGHT   (UINT32_C(1) << 3)
+#define TAISEI_SIM_ACTION_FOCUS   (UINT32_C(1) << 4)
+#define TAISEI_SIM_ACTION_SHOT    (UINT32_C(1) << 5)
+#define TAISEI_SIM_ACTION_BOMB    (UINT32_C(1) << 6)
+#define TAISEI_SIM_ACTION_SPECIAL (UINT32_C(1) << 7)
+#define TAISEI_SIM_ACTION_ALL     UINT32_C(0xff)
+
+#define TAISEI_SIM_INPUT_UP    (UINT32_C(1) << 0)
+#define TAISEI_SIM_INPUT_DOWN  (UINT32_C(1) << 1)
+#define TAISEI_SIM_INPUT_LEFT  (UINT32_C(1) << 2)
+#define TAISEI_SIM_INPUT_RIGHT (UINT32_C(1) << 3)
+#define TAISEI_SIM_INPUT_FOCUS (UINT32_C(1) << 4)
+#define TAISEI_SIM_INPUT_SHOT  (UINT32_C(1) << 5)
+#define TAISEI_SIM_INPUT_SKIP  (UINT32_C(1) << 6)
+
+typedef uint32_t TaiseiSimDifficulty;
+enum {
+    TAISEI_SIM_DIFFICULTY_DEFAULT = 0,
+    TAISEI_SIM_DIFFICULTY_EASY = 1,
+    TAISEI_SIM_DIFFICULTY_NORMAL = 2,
+    TAISEI_SIM_DIFFICULTY_HARD = 3,
+    TAISEI_SIM_DIFFICULTY_LUNATIC = 4,
+};
+
+typedef uint32_t TaiseiSimProjectileCategory;
+enum {
+    TAISEI_SIM_PROJECTILE_INVALID = 0,
+    TAISEI_SIM_PROJECTILE_ENEMY = 1,
+    TAISEI_SIM_PROJECTILE_CLEARING = 2,
+    TAISEI_SIM_PROJECTILE_PLAYER = 3,
+};
+
+typedef uint32_t TaiseiSimDamageType;
+enum {
+    TAISEI_SIM_DAMAGE_UNDEFINED = 0,
+    TAISEI_SIM_DAMAGE_ENEMY_SHOT = 1,
+    TAISEI_SIM_DAMAGE_ENEMY_COLLISION = 2,
+    TAISEI_SIM_DAMAGE_PLAYER_SHOT = 3,
+    TAISEI_SIM_DAMAGE_PLAYER_BOMB = 4,
+    TAISEI_SIM_DAMAGE_PLAYER_DISCHARGE = 5,
+};
+
+#define TAISEI_SIM_PROJECTILE_FLAG_GRAZEABLE         (UINT32_C(1) << 0)
+#define TAISEI_SIM_PROJECTILE_FLAG_CLEARABLE         (UINT32_C(1) << 1)
+#define TAISEI_SIM_PROJECTILE_FLAG_COLLISION_ENABLED (UINT32_C(1) << 2)
+#define TAISEI_SIM_PROJECTILE_FLAG_INDESTRUCTIBLE     (UINT32_C(1) << 3)
+#define TAISEI_SIM_PROJECTILE_FLAG_ACTIVE_HAZARD      (UINT32_C(1) << 4)
+
+#define TAISEI_SIM_ENEMY_FLAG_KILLED       (UINT32_C(1) << 0)
+#define TAISEI_SIM_ENEMY_FLAG_TARGETABLE   (UINT32_C(1) << 1)
+#define TAISEI_SIM_ENEMY_FLAG_DAMAGEABLE   (UINT32_C(1) << 2)
+#define TAISEI_SIM_ENEMY_FLAG_HARMFUL      (UINT32_C(1) << 3)
+#define TAISEI_SIM_ENEMY_FLAG_INVULNERABLE (UINT32_C(1) << 4)
+#define TAISEI_SIM_ENEMY_FLAG_IMPENETRABLE (UINT32_C(1) << 5)
+#define TAISEI_SIM_ENEMY_FLAG_NO_AUTOKILL  (UINT32_C(1) << 6)
+
+#define TAISEI_SIM_CLEAR_FLAG_BULLETS        (UINT32_C(1) << 0)
+#define TAISEI_SIM_CLEAR_FLAG_LASERS         (UINT32_C(1) << 1)
+#define TAISEI_SIM_CLEAR_FLAG_FORCED         (UINT32_C(1) << 2)
+#define TAISEI_SIM_CLEAR_FLAG_IMMEDIATE      (UINT32_C(1) << 3)
+#define TAISEI_SIM_CLEAR_FLAG_SPAWNS_VOLTAGE (UINT32_C(1) << 4)
+
+#define TAISEI_SIM_LASER_POINT_FLAG_DISCONTINUITY (UINT32_C(1) << 0)
+
+typedef uint32_t TaiseiSimItemType;
+enum {
+    TAISEI_SIM_ITEM_PIV = 1,
+    TAISEI_SIM_ITEM_POINTS = 2,
+    TAISEI_SIM_ITEM_POWER_MINI = 3,
+    TAISEI_SIM_ITEM_POWER = 4,
+    TAISEI_SIM_ITEM_SURGE = 5,
+    TAISEI_SIM_ITEM_VOLTAGE = 6,
+    TAISEI_SIM_ITEM_BOMB_FRAGMENT = 7,
+    TAISEI_SIM_ITEM_LIFE_FRAGMENT = 8,
+    TAISEI_SIM_ITEM_BOMB = 9,
+    TAISEI_SIM_ITEM_LIFE = 10,
+};
+

@@ -103,3 +103,71 @@ static void *grow_array(void *ptr, size_t *capacity, size_t required, size_t ele
     return ptr;
 }
 
+static int compare_projectiles(const void *a, const void *b) {
+    const TaiseiSimProjectileState *pa = a;
+    const TaiseiSimProjectileState *pb = b;
+    return (pa->spawn_id > pb->spawn_id) - (pa->spawn_id < pb->spawn_id);
+}
+
+static int compare_enemies(const void *a, const void *b) {
+    const TaiseiSimEnemyState *ea = a;
+    const TaiseiSimEnemyState *eb = b;
+    return (ea->spawn_id > eb->spawn_id) - (ea->spawn_id < eb->spawn_id);
+}
+
+static int compare_items(const void *a, const void *b) {
+    const TaiseiSimItemState *ia = a;
+    const TaiseiSimItemState *ib = b;
+    return (ia->spawn_id > ib->spawn_id) - (ia->spawn_id < ib->spawn_id);
+}
+
+static int compare_laser_ptrs(const void *a, const void *b) {
+    const Laser *la = *(Laser *const *)a;
+    const Laser *lb = *(Laser *const *)b;
+    return (la->ent.spawn_id > lb->ent.spawn_id) - (la->ent.spawn_id < lb->ent.spawn_id);
+}
+
+static uint64_t digest_bytes(uint64_t digest, const void *data, size_t size) {
+    const uint8_t *bytes = data;
+    for(size_t i = 0; i < size; ++i) {
+        digest ^= bytes[i];
+        digest *= UINT64_C(1099511628211);
+    }
+    return digest;
+}
+
+static uint32_t boss_phase_type(const Attack *attack) {
+    if(!attack) {
+        return TAISEI_SIM_BOSS_PHASE_NONE;
+    }
+
+    switch(attack->type) {
+        case AT_Normal: return TAISEI_SIM_BOSS_PHASE_NONSPELL;
+        case AT_Move: return TAISEI_SIM_BOSS_PHASE_MOVE;
+        case AT_Spellcard: return TAISEI_SIM_BOSS_PHASE_SPELL;
+        case AT_SurvivalSpell: return TAISEI_SIM_BOSS_PHASE_SURVIVAL;
+        case AT_ExtraSpell: return TAISEI_SIM_BOSS_PHASE_EXTRA;
+    }
+
+    return TAISEI_SIM_BOSS_PHASE_NONE;
+}
+
+static uint16_t stable_spell_id(const Attack *attack) {
+    if(!attack || !attack->info || !ATTACK_IS_SPELL(attack->type)) {
+        return 0;
+    }
+
+    StageInfo *spell_stage = stageinfo_get_by_spellcard(attack->info, global.diff);
+    return spell_stage ? spell_stage->id : 0;
+}
+
+static uint16_t stage_type(StageType type) {
+    switch(type) {
+        case STAGE_STORY: return TAISEI_SIM_STAGE_STORY;
+        case STAGE_EXTRA: return TAISEI_SIM_STAGE_EXTRA;
+        case STAGE_SPELL: return TAISEI_SIM_STAGE_SPELL;
+        case STAGE_SPECIAL: return TAISEI_SIM_STAGE_SPECIAL;
+    }
+    return TAISEI_SIM_STAGE_UNKNOWN;
+}
+

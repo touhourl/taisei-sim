@@ -164,3 +164,62 @@ enum {
     TAISEI_SIM_BOSS_PHASE_EXTRA = 5,
 };
 
+typedef struct TaiseiSimVec2 {
+    double x;
+    double y;
+} TaiseiSimVec2;
+
+typedef struct TaiseiSimGlobalConfig {
+    //sizeof(TaiseiSimGlobalConfig)
+    uint32_t struct_size;
+    //TAISEI_SIM_API_VERSION
+    uint32_t api_version;
+    // Optional, NULL can be.
+    const char *resource_path;
+    const char *storage_path;
+    const char *cache_path;
+    // == 0
+    uint32_t flags;
+    uint32_t reserved;
+} TaiseiSimGlobalConfig;
+
+typedef struct TaiseiSimConfig {
+    //sizeof(TaiseiSimConfig)
+    uint32_t struct_size;
+    // == 0
+    uint32_t flags;
+    double laser_sample_step;
+    // ==0
+    uint32_t reserved;
+} TaiseiSimConfig;
+
+typedef struct TaiseiSimEpisodeConfig {
+    //sizeof(TaiseiSimEpisodeConfig)
+    uint32_t struct_size;
+    uint16_t stage_id;
+    uint8_t difficulty;
+    uint8_t player_character;
+    uint8_t shot_mode;
+    uint8_t practice_mode;
+    uint16_t reserved0;
+    uint64_t rng_seed;
+    // TAISEI_SIM_USE_DEFAULT_U64
+    uint64_t start_time;
+    //TAISEI_SIM_USE_DEFAULT_I32
+    int32_t initial_lives;
+    int32_t initial_bombs;
+    int32_t initial_life_fragments;
+    int32_t initial_bomb_fragments;
+    int32_t initial_power;
+    int32_t initial_point_item_value;
+    uint64_t initial_score;
+    uint32_t initial_graze;
+    uint32_t reserved1;
+} TaiseiSimEpisodeConfig;
+
+typedef struct TaiseiSimAction {
+    //sizeof(TaiseiSimAction)
+    uint32_t struct_size;
+    uint32_t buttons;
+} TaiseiSimAction;
+

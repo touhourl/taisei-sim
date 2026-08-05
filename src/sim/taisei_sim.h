@@ -280,3 +280,43 @@ typedef struct TaiseiSimBossState {
     float recent_damage;
 } TaiseiSimBossState;
 
+typedef struct TaiseiSimProjectileState {
+    uint32_t spawn_id;
+    uint32_t category;
+    TaiseiSimVec2 position;
+    TaiseiSimVec2 previous_position;
+    TaiseiSimVec2 velocity;
+    TaiseiSimVec2 collision_size;
+    float damage;
+    float angle;
+    int32_t age_frames;
+    uint32_t flags;
+    uint32_t damage_type;
+    uint32_t clear_flags;
+} TaiseiSimProjectileState;
+
+typedef struct TaiseiSimEnemyState {
+    uint32_t spawn_id;
+    TaiseiSimVec2 position;
+    TaiseiSimVec2 velocity;
+    float hp;
+    float max_hp;
+    float hit_radius;
+    float hurt_radius;
+    int32_t age_frames;
+    uint32_t flags;
+    uint32_t damageable;
+    uint32_t harmful;
+} TaiseiSimEnemyState;
+
+typedef struct TaiseiSimItemState {
+    uint32_t spawn_id;
+    TaiseiSimVec2 position;
+    TaiseiSimVec2 velocity;
+    uint32_t item_type;
+    int32_t age_frames;
+    int32_t collect_frame;
+    uint32_t attracted;
+    float pickup_value;
+} TaiseiSimItemState;
+

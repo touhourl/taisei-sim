@@ -320,3 +320,78 @@ typedef struct TaiseiSimItemState {
     float pickup_value;
 } TaiseiSimItemState;
 
+typedef struct TaiseiSimLaserState {
+    uint32_t spawn_id;
+    TaiseiSimVec2 origin;
+    int32_t age_frames;
+    float width;
+    float speed;
+    float timespan;
+    float death_time;
+    float time_shift;
+    uint32_t collision_active;
+    uint32_t unclearable;
+    uint32_t clear_flags;
+    uint32_t first_point;
+    uint32_t point_count;
+} TaiseiSimLaserState;
+
+typedef struct TaiseiSimLaserPoint {
+    TaiseiSimVec2 position;
+    float half_width;
+    float time;
+    uint32_t flags;
+} TaiseiSimLaserPoint;
+
+typedef struct TaiseiSimState {
+    uint32_t struct_size;
+    uint32_t api_version;
+    uint16_t stage_id;
+    uint16_t stage_type;
+    uint8_t difficulty;
+    uint8_t player_character;
+    uint8_t shot_mode;
+    uint8_t practice_mode;
+    uint64_t logical_frame;
+    uint64_t initial_rng_seed;
+    uint64_t start_time;
+    uint32_t episode_status;
+    uint32_t stage_clear;
+    uint32_t game_over;
+    uint32_t reserved0;
+    uint64_t score;
+    uint32_t graze;
+    uint32_t voltage;
+    uint32_t deaths;
+    uint32_t bombs_used;
+    uint32_t continues_used;
+    int32_t gameover_frame;
+    int32_t reserved2;
+    TaiseiSimPlayerState player;
+    TaiseiSimBossState boss;
+    uint32_t projectile_count;
+    uint32_t enemy_count;
+    uint32_t item_count;
+    uint32_t laser_count;
+    uint32_t laser_point_count;
+    uint32_t reserved1;
+    uint64_t gameplay_digest;
+} TaiseiSimState;
+
+typedef struct TaiseiSimStateBuffers {
+    // sizeof(TaiseiSimStateBuffers)
+    uint32_t struct_size;
+    // == 0
+    uint32_t reserved;
+    TaiseiSimProjectileState *projectiles;
+    uint32_t projectile_capacity;
+    TaiseiSimEnemyState *enemies;
+    uint32_t enemy_capacity;
+    TaiseiSimItemState *items;
+    uint32_t item_capacity;
+    TaiseiSimLaserState *lasers;
+    uint32_t laser_capacity;
+    TaiseiSimLaserPoint *laser_points;
+    uint32_t laser_point_capacity;
+} TaiseiSimStateBuffers;
+

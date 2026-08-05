@@ -7,8 +7,6 @@
  */
 
 #include "background_anim.h"
-#include "draw.h"
-
 #include "stageutils.h"
 #include "common_tasks.h"
 
@@ -31,6 +29,8 @@ void stage6_bg_start_fall_over(void) {
 }
 
 
+static BoxedTask boss_rotation_task;
+
 TASK(stage6_bg_boss_rotation) {
 	Camera3D *cam = &stage_3d_context.cam;
 	float r = sqrt(cam->pos[0] * cam->pos[0] + cam->pos[1] * cam->pos[1]);
@@ -46,13 +46,13 @@ TASK(stage6_bg_boss_rotation) {
 }
 
 void stage6_bg_start_boss_rotation(void) {
-	Stage6DrawData *drawdata = stage6_get_draw_data();
-	drawdata->boss_rotation = cotask_box(INVOKE_TASK(stage6_bg_boss_rotation));
+	CANCEL_TASK(boss_rotation_task);
+	boss_rotation_task = cotask_box(INVOKE_TASK(stage6_bg_boss_rotation));
 }
 
 void stage6_bg_stop_boss_rotation(void) {
-	Stage6DrawData *drawdata = stage6_get_draw_data();
-	CANCEL_TASK(drawdata->boss_rotation);
+	CANCEL_TASK(boss_rotation_task);
+	boss_rotation_task = (BoxedTask) {};
 	Camera3D *cam = &stage_3d_context.cam;
 	cam->rot.v[2] = 270;
 	cam->pos[0] = -6;
@@ -110,6 +110,7 @@ TASK(stage6_bg_update) {
 }
 
 void stage6_bg_init_fullstage(void) {
+	boss_rotation_task = (BoxedTask) {};
 	Camera3D *cam = &stage_3d_context.cam;
 	cam->rot.v[0] = 90;
 	cam->fovy = STAGE3D_DEFAULT_FOVY*1.5;
@@ -118,6 +119,7 @@ void stage6_bg_init_fullstage(void) {
 }
 
 void stage6_bg_init_spellpractice(void) {
+	boss_rotation_task = (BoxedTask) {};
 	Camera3D *cam = &stage_3d_context.cam;
 	cam->pos[0] = -6;
 	cam->pos[2] = 8;

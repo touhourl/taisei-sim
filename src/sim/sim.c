@@ -289,3 +289,67 @@ static uint32_t enemy_flags(Enemy *e) {
     return flags;
 }
 
+static uint32_t count_projectiles(void) {
+    uint32_t count = 0;
+    for(Projectile *p = global.projs.first; p; p = p->next) {
+        if(p->type != PROJ_PARTICLE) {
+            ++count;
+        }
+    }
+    return count;
+}
+
+static uint32_t count_enemies(void) {
+    uint32_t count = 0;
+    for(Enemy *e = global.enemies.first; e; e = e->next) {
+        ++count;
+    }
+    return count;
+}
+
+static uint32_t count_items(void) {
+    uint32_t count = 0;
+    for(Item *item = global.items.first; item; item = item->next) {
+        ++count;
+    }
+    return count;
+}
+
+static uint32_t count_lasers(void) {
+    uint32_t count = 0;
+    for(Laser *laser = global.lasers.first; laser; laser = laser->next) {
+        ++count;
+    }
+    return count;
+}
+
+typedef struct LaserTraceContext {
+    TaiseiSim *sim;
+    uint32_t count;
+} LaserTraceContext;
+
+static void *collect_laser_point(Laser *laser, const LaserTraceSample *sample, void *userdata) {
+    (void)laser;
+    LaserTraceContext *ctx = userdata;
+    TaiseiSim *sim = ctx->sim;
+    uint32_t index = ctx->count++;
+
+    sim->laser_points = grow_array(
+        sim->laser_points,
+        &sim->laser_point_capacity,
+        ctx->count,
+        sizeof(*sim->laser_points)
+    );
+
+    float t = sample->segment_param;
+    float width = sample->segment->width.a + (sample->segment->width.b - sample->segment->width.a) * t;
+    sim->laser_points[index] = (TaiseiSimLaserPoint) {
+        .position = vec2_from_complex(sample->pos),
+        .half_width = width * 0.5f,
+        .time = sample->segment->time.a + (sample->segment->time.b - sample->segment->time.a) * t,
+        .flags = sample->discontinuous ? TAISEI_SIM_LASER_POINT_FLAG_DISCONTINUITY : 0u,
+    };
+
+    return userdata;
+}
+

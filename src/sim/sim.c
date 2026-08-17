@@ -903,3 +903,65 @@ uint64_t taisei_sim_abi_fingerprint(void) {
     }
     return hash;
 }
+
+TaiseiSimResult taisei_sim_global_init(const TaiseiSimGlobalConfig *config) {
+    if(config == NULL) {
+        return set_error(NULL, TAISEI_SIM_ERROR_INVALID_ARGUMENT, "Global configuration is null");
+    }
+    if(!struct_is_compatible(config->struct_size, sizeof(*config)) || config->api_version != TAISEI_SIM_API_VERSION) {
+        return set_error(NULL, TAISEI_SIM_ERROR_ABI_MISMATCH, "Global configuration size or API version does not match");
+    }
+    if(config->flags != 0 || config->reserved != 0) {
+        return set_error(NULL, TAISEI_SIM_ERROR_INVALID_ARGUMENT, "Unknown global simulation flags");
+    }
+    if(library_initialized) {
+        return set_error(NULL, TAISEI_SIM_ERROR_ALREADY_INITIALIZED, "Simulation is already inited");
+    }
+
+    TaiseiSimResult result = taisei_sim_runtime_init(config, global_error, sizeof(global_error));
+    if(result == TAISEI_SIM_OK) {
+        library_initialized = true;
+    }
+    return result;
+}
+
+TaiseiSimResult taisei_sim_global_shutdown(void) {
+    if(!library_initialized) {
+        return TAISEI_SIM_OK;
+    }
+    if(active_sim) {
+        return set_error(active_sim, TAISEI_SIM_ERROR_SIMULATION_ACTIVE, "Please distroy the active simulation before shutdown");
+    }
+
+    taisei_sim_runtime_shutdown();
+    library_initialized = false;
+    return TAISEI_SIM_OK;
+}
+
+TaiseiSimResult taisei_sim_create(const TaiseiSimConfig *config, TaiseiSim **out_sim) {
+    if(!library_initialized) {
+        return set_error(NULL, TAISEI_SIM_ERROR_NOT_INITIALIZED, "Call taisei_sim_global_init first");
+    }
+    if(out_sim) {
+        *out_sim = NULL;
+    }
+    if(config == NULL || out_sim == NULL || !struct_is_compatible(config->struct_size, sizeof(*config))) {
+        return set_error(NULL, TAISEI_SIM_ERROR_INVALID_ARGUMENT, "Invalid simulation cfg or pointer");
+    }
+    if(config->flags != 0 || config->reserved != 0 || !isfinite(config->laser_sample_step)) {
+        return set_error(NULL, TAISEI_SIM_ERROR_INVALID_ARGUMENT, "Unknown sim flags, nonzero reserved field, or invalid laser sample step");
+    }
+    if(active_sim) {
+        return set_error(active_sim, TAISEI_SIM_ERROR_SIMULATION_ACTIVE, "Only one simulation is supported per process. Use `multiprocessing` or `std::process::Command`");
+    }
+
+    TaiseiSim *sim = ALLOC(TaiseiSim, {
+        .status = TAISEI_SIM_STATUS_INVALID,
+        .laser_sample_step = config->laser_sample_step > 0 ? config->laser_sample_step : 8.0,
+    });
+    res_group_init(&sim->resources);
+    stage_set_external_input_hook(sim_input_hook, sim);
+    active_sim = sim;
+    *out_sim = sim;
+    return TAISEI_SIM_OK;
+}

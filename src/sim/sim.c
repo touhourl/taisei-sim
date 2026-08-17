@@ -353,3 +353,99 @@ static void *collect_laser_point(Laser *laser, const LaserTraceSample *sample, v
     return userdata;
 }
 
+static void build_snapshot(TaiseiSim *sim) {
+    TaiseiSimState *state = &sim->snapshot;
+    *state = (TaiseiSimState) {
+        .struct_size = sizeof(*state),
+        .api_version = TAISEI_SIM_API_VERSION,
+        .episode_status = sim->status,
+        .initial_rng_seed = sim->initial_seed,
+        .start_time = sim->start_time,
+        .gameover_frame = global.gameover_time,
+    };
+
+    if(global.stage) {
+        state->stage_id = global.stage->id;
+        state->stage_type = stage_type(global.stage->type);
+    }
+
+    state->difficulty = global.diff;
+    state->practice_mode = global.is_practice_mode;
+    state->logical_frame = global.frames;
+    state->stage_clear = stage_is_cleared() || sim->status == TAISEI_SIM_STATUS_WON;
+    state->game_over = sim->status == TAISEI_SIM_STATUS_LOST;
+    state->score = global.plr.points;
+    state->graze = global.plr.graze;
+    state->voltage = global.plr.voltage;
+    state->deaths = global.plr.stats.stage.lives_used;
+    state->bombs_used = global.plr.stats.stage.bombs_used;
+    state->continues_used = global.plr.stats.stage.continues_used;
+
+    Player *player = &global.plr;
+    state->player = (TaiseiSimPlayerState) {
+        .position = vec2_from_complex(player->pos),
+        .previous_position = sim->previous_player_position,
+        .velocity = vec2_from_complex(player->velocity),
+        .input_flags = input_flags(player->inputflags),
+        .focused = !!(player->inputflags & INFLAG_FOCUS),
+        .shooting = !!(player->inputflags & INFLAG_SHOT),
+        .lives = player->lives,
+        .bombs = player->bombs,
+        .life_fragments = player->life_fragments,
+        .bomb_fragments = player->bomb_fragments,
+        .stored_power = player->power_stored,
+        .effective_power = player_get_effective_power(player),
+        .point_item_value = player->point_item_value,
+        .score = player->points,
+        .graze = player->graze,
+        .voltage = player->voltage,
+        .invulnerable = !player_is_vulnerable(player),
+        .recovering = player_is_recovering(player),
+        .alive = player_is_alive(player),
+        .death_timer = player->deathtime >= 0 ? player->deathtime - global.frames : -1,
+        .respawn_timer = player->respawntime > global.frames ? player->respawntime - global.frames : 0,
+        .recovery_timer = player->recoverytime > global.frames ? player->recoverytime - global.frames : 0,
+        .bomb_active = player_is_bomb_active(player),
+        .bomb_progress = player_get_bomb_progress(player),
+        .bomb_trigger_frame = player->bomb_triggertime,
+        .bomb_end_frame = player->bomb_endtime,
+        .power_surge_active = player_is_powersurge_active(player),
+        .power_surge_positive = player->powersurge.positive,
+        .power_surge_negative = player->powersurge.negative,
+    };
+
+    if(player->mode) {
+        state->player.player_character = player->mode->character->id;
+        state->player.shot_mode = player->mode->shot_mode;
+        state->player_character = player->mode->character->id;
+        state->shot_mode = player->mode->shot_mode;
+    }
+
+    fill_boss_state(sim, &state->boss);
+
+    state->projectile_count = count_projectiles();
+    sim->projectiles = grow_array(sim->projectiles, &sim->projectile_capacity, state->projectile_count, sizeof(*sim->projectiles));
+    uint32_t pi = 0;
+    for(Projectile *p = global.projs.first; p; p = p->next) {
+        if(p->type == PROJ_PARTICLE) {
+            continue;
+        }
+        sim->projectiles[pi++] = (TaiseiSimProjectileState) {
+            .spawn_id = p->ent.spawn_id,
+            .category = projectile_category(p),
+            .position = vec2_from_complex(p->pos),
+            .previous_position = vec2_from_complex(p->prevpos),
+            .velocity = vec2_from_complex(p->move.velocity),
+            .collision_size = vec2_from_complex(p->collision_size),
+            .damage = p->damage,
+            .angle = p->angle,
+            .age_frames = global.frames - p->birthtime,
+            .flags = projectile_flags(p),
+            .damage_type = damage_type(p->damage_type),
+            .clear_flags = clear_flags(p->clear_flags),
+        };
+    }
+    if(state->projectile_count > 1) {
+        qsort(sim->projectiles, state->projectile_count, sizeof(*sim->projectiles), compare_projectiles);
+    }
+

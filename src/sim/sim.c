@@ -965,3 +965,70 @@ TaiseiSimResult taisei_sim_create(const TaiseiSimConfig *config, TaiseiSim **out
     *out_sim = sim;
     return TAISEI_SIM_OK;
 }
+
+TaiseiSimResult taisei_sim_reset(TaiseiSim *sim, const TaiseiSimEpisodeConfig *episode) {
+    TaiseiSimResult valid = validate_sim(sim);
+    if(valid != TAISEI_SIM_OK) {
+        return valid;
+    }
+    if(episode == NULL || !struct_is_compatible(episode->struct_size, sizeof(*episode))) {
+        return set_error(sim, TAISEI_SIM_ERROR_INVALID_ARGUMENT, "Episode config invalid");
+    }
+    if(episode->reserved0 != 0 || episode->reserved1 != 0 || episode->practice_mode > 1) {
+        return set_error(sim, TAISEI_SIM_ERROR_INVALID_ARGUMENT, "Reserved episode fields must be zero and practice_mode must be 0 or 1");
+    }
+
+    TaiseiSimResult aborted = abort_active_episode(sim);
+    if(aborted != TAISEI_SIM_OK) {
+        return aborted;
+    }
+
+    // Just like we done before, and also like what we done to th05 mystic square (nmlgc/rec98),
+    // th04 lotus land story (nmlgc/rec98), even th06-portable (GensokyoClub/th06)...
+    // So it is really clear how to write the code and without Segmentation Fault.
+    res_group_release(&sim->resources);
+    res_group_init(&sim->resources);
+
+    StageInfo *stage = stageinfo_get_by_id(episode->stage_id);
+    if(!stage) {
+        return set_error(sim, TAISEI_SIM_ERROR_STAGE_NOT_FOUND, "Unknown stage ID");
+    }
+
+    PlayerMode *mode = plrmode_find(episode->player_character, episode->shot_mode);
+    if(!mode) {
+        return set_error(sim, TAISEI_SIM_ERROR_PLAYER_MODE_NOT_FOUND, "Unknown player character or shot type");
+    }
+
+    Difficulty difficulty = episode->difficulty ? episode->difficulty : (stage->difficulty ? stage->difficulty : D_Easy);
+    if(difficulty < D_Easy || difficulty > D_Lunatic) {
+        return set_error(sim, TAISEI_SIM_ERROR_INVALID_ARGUMENT, "Rank must be in a selectable range");
+    }
+
+    if(
+        (episode->initial_lives != TAISEI_SIM_USE_DEFAULT_I32 && (episode->initial_lives < 0 || episode->initial_lives > PLR_MAX_LIVES)) ||
+        (episode->initial_bombs != TAISEI_SIM_USE_DEFAULT_I32 && (episode->initial_bombs < 0 || episode->initial_bombs > PLR_MAX_BOMBS)) ||
+        (episode->initial_life_fragments != TAISEI_SIM_USE_DEFAULT_I32 && (episode->initial_life_fragments < 0 || episode->initial_life_fragments > PLR_MAX_LIFE_FRAGMENTS)) ||
+        (episode->initial_bomb_fragments != TAISEI_SIM_USE_DEFAULT_I32 && (episode->initial_bomb_fragments < 0 || episode->initial_bomb_fragments > PLR_MAX_BOMB_FRAGMENTS)) ||
+        (episode->initial_power != TAISEI_SIM_USE_DEFAULT_I32 && (episode->initial_power < 0 || episode->initial_power > PLR_MAX_POWER_STORED)) ||
+        (episode->initial_point_item_value != TAISEI_SIM_USE_DEFAULT_I32 && episode->initial_point_item_value < 0)
+    ) {
+        return set_error(sim, TAISEI_SIM_ERROR_INVALID_ARGUMENT, "Initial player resources are outside supported ranges. Consider use runtime injections to cheat");
+    }
+
+    replay_state_deinit(&global.replay.input);
+    replay_state_deinit(&global.replay.output);
+    if(sim->replay_initialized) {
+        replay_reset(&sim->replay);
+    }
+    sim->replay_initialized = true;
+    sim->replay.playername = mem_strdup("thrl");
+    replay_state_init_record(&global.replay.output, &sim->replay);
+
+    global.gameover = GAMEOVER_NONE;
+    global.diff = difficulty;
+    global.is_practice_mode = episode->practice_mode || stage->type == STAGE_SPELL;
+
+    player_init(&global.plr);
+    stats_init(&global.plr.stats);
+    global.plr.mode = mode;
+

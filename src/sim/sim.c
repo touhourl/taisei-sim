@@ -676,3 +676,53 @@ static void build_snapshot(TaiseiSim *sim) {
     #undef DIGEST_SCALAR
     state->gameplay_digest = digest;
 }
+
+#define INFLAGS_SIM_CONTROLLED (INFLAGS_MOVE | INFLAG_FOCUS | INFLAG_SHOT)
+
+static void sim_input_hook(void *userdata) {
+    TaiseiSim *sim = userdata;
+    static const struct {
+        uint32_t button;
+        KeyIndex key;
+    } mappings[] = {
+        { TAISEI_SIM_ACTION_UP, KEY_UP },
+        { TAISEI_SIM_ACTION_DOWN, KEY_DOWN },
+        { TAISEI_SIM_ACTION_LEFT, KEY_LEFT },
+        { TAISEI_SIM_ACTION_RIGHT, KEY_RIGHT },
+        { TAISEI_SIM_ACTION_FOCUS, KEY_FOCUS },
+        { TAISEI_SIM_ACTION_SHOT, KEY_SHOT },
+        { TAISEI_SIM_ACTION_BOMB, KEY_BOMB },
+        { TAISEI_SIM_ACTION_SPECIAL, KEY_SPECIAL },
+    };
+
+    uint32_t changed = sim->desired_buttons ^ sim->applied_buttons;
+    for(size_t i = 0; i < sizeof(mappings) / sizeof(mappings[0]); ++i) {
+        if(!(changed & mappings[i].button)) {
+            continue;
+        }
+
+        bool pressed = sim->desired_buttons & mappings[i].button;
+        player_event(
+            &global.plr,
+            NULL,
+            &global.replay.output,
+            pressed ? EV_PRESS : EV_RELEASE,
+            mappings[i].key
+        );
+    }
+
+    PlrInputFlag continuous = 0;
+    if(sim->desired_buttons & TAISEI_SIM_ACTION_UP) continuous |= INFLAG_UP;
+    if(sim->desired_buttons & TAISEI_SIM_ACTION_DOWN) continuous |= INFLAG_DOWN;
+    if(sim->desired_buttons & TAISEI_SIM_ACTION_LEFT) continuous |= INFLAG_LEFT;
+    if(sim->desired_buttons & TAISEI_SIM_ACTION_RIGHT) continuous |= INFLAG_RIGHT;
+    if(sim->desired_buttons & TAISEI_SIM_ACTION_FOCUS) continuous |= INFLAG_FOCUS;
+    if(sim->desired_buttons & TAISEI_SIM_ACTION_SHOT) continuous |= INFLAG_SHOT;
+
+    PlrInputFlag reconciled = (global.plr.inputflags & ~INFLAGS_SIM_CONTROLLED) | continuous;
+    if(reconciled != global.plr.inputflags) {
+        player_event(&global.plr, NULL, &global.replay.output, EV_INFLAGS, reconciled);
+    }
+
+    sim->applied_buttons = sim->desired_buttons;
+}

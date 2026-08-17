@@ -774,3 +774,132 @@ static TaiseiSimResult abort_active_episode(TaiseiSim *sim) {
 
     return TAISEI_SIM_OK;
 }
+
+uint32_t taisei_sim_api_version(void) {
+    return TAISEI_SIM_API_VERSION;
+}
+
+static uint64_t abi_hash_u64(uint64_t hash, uint64_t value) {
+    for(uint32_t i = 0; i < 8; ++i) {
+        hash ^= (value >> (i * 8)) & UINT64_C(0xff);
+        hash *= UINT64_C(1099511628211);
+    }
+    return hash;
+}
+
+uint64_t taisei_sim_abi_fingerprint(void) {
+    static const uint64_t values[] = {
+        TAISEI_SIM_API_VERSION,
+        (uint64_t)(int64_t)TAISEI_SIM_OK,
+        (uint64_t)(int64_t)TAISEI_SIM_ERROR_INVALID_ARGUMENT,
+        (uint64_t)(int64_t)TAISEI_SIM_ERROR_INVALID_HANDLE,
+        (uint64_t)(int64_t)TAISEI_SIM_ERROR_NOT_INITIALIZED,
+        (uint64_t)(int64_t)TAISEI_SIM_ERROR_ALREADY_INITIALIZED,
+        (uint64_t)(int64_t)TAISEI_SIM_ERROR_SIMULATION_ACTIVE,
+        (uint64_t)(int64_t)TAISEI_SIM_ERROR_NO_ACTIVE_EPISODE,
+        (uint64_t)(int64_t)TAISEI_SIM_ERROR_EPISODE_RUNNING,
+        (uint64_t)(int64_t)TAISEI_SIM_ERROR_EPISODE_TERMINAL,
+        (uint64_t)(int64_t)TAISEI_SIM_ERROR_STAGE_NOT_FOUND,
+        (uint64_t)(int64_t)TAISEI_SIM_ERROR_PLAYER_MODE_NOT_FOUND,
+        (uint64_t)(int64_t)TAISEI_SIM_ERROR_BUFFER_TOO_SMALL,
+        (uint64_t)(int64_t)TAISEI_SIM_ERROR_IO,
+        (uint64_t)(int64_t)TAISEI_SIM_ERROR_ABI_MISMATCH,
+        (uint64_t)(int64_t)TAISEI_SIM_ERROR_INTERNAL,
+        TAISEI_SIM_STATUS_INVALID,
+        TAISEI_SIM_STATUS_RUNNING,
+        TAISEI_SIM_STATUS_WON,
+        TAISEI_SIM_STATUS_LOST,
+        TAISEI_SIM_STATUS_ABORTED,
+        TAISEI_SIM_STATUS_ERROR,
+        TAISEI_SIM_DIFFICULTY_DEFAULT,
+        TAISEI_SIM_DIFFICULTY_EASY,
+        TAISEI_SIM_DIFFICULTY_NORMAL,
+        TAISEI_SIM_DIFFICULTY_HARD,
+        TAISEI_SIM_DIFFICULTY_LUNATIC,
+        TAISEI_SIM_STAGE_UNKNOWN,
+        TAISEI_SIM_STAGE_STORY,
+        TAISEI_SIM_STAGE_EXTRA,
+        TAISEI_SIM_STAGE_SPELL,
+        TAISEI_SIM_STAGE_SPECIAL,
+        TAISEI_SIM_BOSS_PHASE_NONE,
+        TAISEI_SIM_BOSS_PHASE_NONSPELL,
+        TAISEI_SIM_BOSS_PHASE_MOVE,
+        TAISEI_SIM_BOSS_PHASE_SPELL,
+        TAISEI_SIM_BOSS_PHASE_SURVIVAL,
+        TAISEI_SIM_BOSS_PHASE_EXTRA,
+        TAISEI_SIM_ACTION_UP,
+        TAISEI_SIM_ACTION_DOWN,
+        TAISEI_SIM_ACTION_LEFT,
+        TAISEI_SIM_ACTION_RIGHT,
+        TAISEI_SIM_ACTION_FOCUS,
+        TAISEI_SIM_ACTION_SHOT,
+        TAISEI_SIM_ACTION_BOMB,
+        TAISEI_SIM_ACTION_SPECIAL,
+        TAISEI_SIM_ACTION_ALL,
+        TAISEI_SIM_INPUT_UP,
+        TAISEI_SIM_INPUT_DOWN,
+        TAISEI_SIM_INPUT_LEFT,
+        TAISEI_SIM_INPUT_RIGHT,
+        TAISEI_SIM_INPUT_FOCUS,
+        TAISEI_SIM_INPUT_SHOT,
+        TAISEI_SIM_INPUT_SKIP,
+        TAISEI_SIM_PROJECTILE_INVALID,
+        TAISEI_SIM_PROJECTILE_ENEMY,
+        TAISEI_SIM_PROJECTILE_CLEARING,
+        TAISEI_SIM_PROJECTILE_PLAYER,
+        TAISEI_SIM_DAMAGE_UNDEFINED,
+        TAISEI_SIM_DAMAGE_ENEMY_SHOT,
+        TAISEI_SIM_DAMAGE_ENEMY_COLLISION,
+        TAISEI_SIM_DAMAGE_PLAYER_SHOT,
+        TAISEI_SIM_DAMAGE_PLAYER_BOMB,
+        TAISEI_SIM_DAMAGE_PLAYER_DISCHARGE,
+        TAISEI_SIM_PROJECTILE_FLAG_GRAZEABLE,
+        TAISEI_SIM_PROJECTILE_FLAG_CLEARABLE,
+        TAISEI_SIM_PROJECTILE_FLAG_COLLISION_ENABLED,
+        TAISEI_SIM_PROJECTILE_FLAG_INDESTRUCTIBLE,
+        TAISEI_SIM_PROJECTILE_FLAG_ACTIVE_HAZARD,
+        TAISEI_SIM_ENEMY_FLAG_KILLED,
+        TAISEI_SIM_ENEMY_FLAG_TARGETABLE,
+        TAISEI_SIM_ENEMY_FLAG_DAMAGEABLE,
+        TAISEI_SIM_ENEMY_FLAG_HARMFUL,
+        TAISEI_SIM_ENEMY_FLAG_INVULNERABLE,
+        TAISEI_SIM_ENEMY_FLAG_IMPENETRABLE,
+        TAISEI_SIM_ENEMY_FLAG_NO_AUTOKILL,
+        TAISEI_SIM_CLEAR_FLAG_BULLETS,
+        TAISEI_SIM_CLEAR_FLAG_LASERS,
+        TAISEI_SIM_CLEAR_FLAG_FORCED,
+        TAISEI_SIM_CLEAR_FLAG_IMMEDIATE,
+        TAISEI_SIM_CLEAR_FLAG_SPAWNS_VOLTAGE,
+        TAISEI_SIM_LASER_POINT_FLAG_DISCONTINUITY,
+        TAISEI_SIM_ITEM_PIV,
+        TAISEI_SIM_ITEM_POINTS,
+        TAISEI_SIM_ITEM_POWER_MINI,
+        TAISEI_SIM_ITEM_POWER,
+        TAISEI_SIM_ITEM_SURGE,
+        TAISEI_SIM_ITEM_VOLTAGE,
+        TAISEI_SIM_ITEM_BOMB_FRAGMENT,
+        TAISEI_SIM_ITEM_LIFE_FRAGMENT,
+        TAISEI_SIM_ITEM_BOMB,
+        TAISEI_SIM_ITEM_LIFE,
+        sizeof(TaiseiSimVec2),
+        sizeof(TaiseiSimGlobalConfig),
+        sizeof(TaiseiSimConfig),
+        sizeof(TaiseiSimEpisodeConfig),
+        sizeof(TaiseiSimAction),
+        sizeof(TaiseiSimPlayerState),
+        sizeof(TaiseiSimBossState),
+        sizeof(TaiseiSimProjectileState),
+        sizeof(TaiseiSimEnemyState),
+        sizeof(TaiseiSimItemState),
+        sizeof(TaiseiSimLaserState),
+        sizeof(TaiseiSimLaserPoint),
+        sizeof(TaiseiSimState),
+        sizeof(TaiseiSimStateBuffers),
+    };
+
+    uint64_t hash = UINT64_C(14695981039346656037);
+    for(size_t i = 0; i < sizeof(values) / sizeof(values[0]); ++i) {
+        hash = abi_hash_u64(hash, values[i]);
+    }
+    return hash;
+}

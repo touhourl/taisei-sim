@@ -726,3 +726,51 @@ static void sim_input_hook(void *userdata) {
 
     sim->applied_buttons = sim->desired_buttons;
 }
+
+static void sim_stage_finished(CallChainResult ccr) {
+    TaiseiSim *sim = ccr.ctx;
+    sim->episode_active = false;
+    sim->replay_complete = true;
+    switch(global.gameover) {
+        case GAMEOVER_WIN:
+        case GAMEOVER_SCORESCREEN:
+            sim->status = TAISEI_SIM_STATUS_WON;
+            break;
+        case GAMEOVER_DEFEAT:
+            sim->status = TAISEI_SIM_STATUS_LOST;
+            break;
+        default:
+            sim->status = TAISEI_SIM_STATUS_ABORTED;
+            break;
+    }
+}
+
+static TaiseiSimResult abort_active_episode(TaiseiSim *sim) {
+    if(!sim->episode_active) {
+        return TAISEI_SIM_OK;
+    }
+
+    sim->desired_buttons = 0;
+
+    // stage_enter() starts the loop before the stage has began's code.
+    // So we run that first frame before requesting an abort so it is okay and well.
+    if(global.frames == 0 && eventloop_is_active()) {
+        eventloop_step_logic();
+    }
+
+    if(!sim->episode_active || !eventloop_is_active()) {
+        return TAISEI_SIM_OK;
+    }
+
+    stage_finish(GAMEOVER_ABORT);
+
+    for(uint32_t i = 0; i < SIM_ABORT_FRAME_LIMIT && eventloop_is_active(); ++i) {
+        eventloop_step_logic();
+    }
+
+    if(eventloop_is_active()) {
+        return set_error(sim, TAISEI_SIM_ERROR_INTERNAL, "Active stage did not stop");
+    }
+
+    return TAISEI_SIM_OK;
+}

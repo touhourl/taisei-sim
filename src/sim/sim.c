@@ -1098,3 +1098,45 @@ TaiseiSimResult taisei_sim_reset(TaiseiSim *sim, const TaiseiSimEpisodeConfig *e
     sim->previous_player_position = vec2_from_complex(global.plr.pos);
     return TAISEI_SIM_OK;
 }
+
+TaiseiSimResult taisei_sim_step(TaiseiSim *sim, const TaiseiSimAction *action, uint32_t frame_count) {
+    TaiseiSimResult valid = validate_sim(sim);
+    if(valid != TAISEI_SIM_OK) {
+        return valid;
+    }
+    if(action == NULL || !struct_is_compatible(action->struct_size, sizeof(*action))) {
+        return set_error(sim, TAISEI_SIM_ERROR_INVALID_ARGUMENT, "Action is null");
+    }
+    if(action->buttons & ~TAISEI_SIM_ACTION_ALL) {
+        return set_error(sim, TAISEI_SIM_ERROR_INVALID_ARGUMENT, "Action contains things");
+    }
+    if(!sim->episode_active) {
+        return set_error(sim, TAISEI_SIM_ERROR_EPISODE_TERMINAL, "Episode is not running, no actions could be taken");
+    }
+
+    sim->desired_buttons = action->buttons;
+    sim->recent_boss_damage = 0;
+
+    for(uint32_t i = 0; i < frame_count && sim->episode_active; ++i) {
+        sim->previous_player_position = vec2_from_complex(global.plr.pos);
+
+        Boss *before_boss = global.boss;
+        Attack *before_attack = before_boss ? before_boss->current : NULL;
+        float before_hp = before_attack ? before_attack->hp : 0;
+
+        LogicFrameAction loop_action = eventloop_step_logic();
+        if(loop_action == LFRAME_STOP && sim->episode_active) {
+            sim->status = TAISEI_SIM_STATUS_ERROR;
+            return set_error(sim, TAISEI_SIM_ERROR_INTERNAL, "Event stopped without completing");
+        }
+
+        Boss *after_boss = global.boss;
+        Attack *after_attack = after_boss ? after_boss->current : NULL;
+        if(before_boss && before_boss == after_boss && before_attack && before_attack == after_attack && after_attack->hp < before_hp) {
+            sim->recent_boss_damage += before_hp - after_attack->hp;
+        }
+    }
+
+    return TAISEI_SIM_OK;
+}
+

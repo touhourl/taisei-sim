@@ -1260,3 +1260,25 @@ TaiseiSimResult taisei_sim_destroy(TaiseiSim *sim) {
     mem_free(sim);
     return TAISEI_SIM_OK;
 }
+
+const char *taisei_sim_last_error(const TaiseiSim *sim) {
+    if(sim && sim == active_sim) {
+        return sim->error;
+    }
+    return global_error;
+}
+
+size_t taisei_sim_sizeof_vec2(void) { return sizeof(TaiseiSimVec2); }
+size_t taisei_sim_sizeof_global_config(void) { return sizeof(TaiseiSimGlobalConfig); }
+size_t taisei_sim_sizeof_config(void) { return sizeof(TaiseiSimConfig); }
+size_t taisei_sim_sizeof_episode_config(void) { return sizeof(TaiseiSimEpisodeConfig); }
+size_t taisei_sim_sizeof_action(void) { return sizeof(TaiseiSimAction); }
+size_t taisei_sim_sizeof_state(void) { return sizeof(TaiseiSimState); }
+size_t taisei_sim_sizeof_state_buffers(void) { return sizeof(TaiseiSimStateBuffers); }
+size_t taisei_sim_sizeof_player_state(void) { return sizeof(TaiseiSimPlayerState); }
+size_t taisei_sim_sizeof_boss_state(void) { return sizeof(TaiseiSimBossState); }
+size_t taisei_sim_sizeof_projectile_state(void) { return sizeof(TaiseiSimProjectileState); }
+size_t taisei_sim_sizeof_enemy_state(void) { return sizeof(TaiseiSimEnemyState); }
+size_t taisei_sim_sizeof_item_state(void) { return sizeof(TaiseiSimItemState); }
+size_t taisei_sim_sizeof_laser_state(void) { return sizeof(TaiseiSimLaserState); }
+size_t taisei_sim_sizeof_laser_point(void) { return sizeof(TaiseiSimLaserPoint); }

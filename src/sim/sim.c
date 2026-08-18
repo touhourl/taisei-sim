@@ -1140,3 +1140,75 @@ TaiseiSimResult taisei_sim_step(TaiseiSim *sim, const TaiseiSimAction *action, u
     return TAISEI_SIM_OK;
 }
 
+TaiseiSimResult taisei_sim_abort(TaiseiSim *sim) {
+    TaiseiSimResult valid = validate_sim(sim);
+    if(valid != TAISEI_SIM_OK) {
+        return valid;
+    }
+    if(!sim->episode_active) {
+        return set_error(sim, TAISEI_SIM_ERROR_EPISODE_TERMINAL, "Episode is not running");
+    }
+    return abort_active_episode(sim);
+}
+
+TaiseiSimResult taisei_sim_get_state(TaiseiSim *sim, TaiseiSimState *out_state, const TaiseiSimStateBuffers *buffers) {
+    TaiseiSimResult valid = validate_sim(sim);
+    if(valid != TAISEI_SIM_OK) {
+        return valid;
+    }
+    if(out_state == NULL || !struct_is_compatible(out_state->struct_size, sizeof(*out_state))) {
+        return set_error(sim, TAISEI_SIM_ERROR_INVALID_ARGUMENT, "State output is null");
+    }
+    if(buffers && (!struct_is_compatible(buffers->struct_size, sizeof(*buffers)) || buffers->reserved != 0)) {
+        return set_error(sim, TAISEI_SIM_ERROR_INVALID_ARGUMENT, "State buffers structure is broken");
+    }
+    if(sim->status == TAISEI_SIM_STATUS_INVALID) {
+        return set_error(sim, TAISEI_SIM_ERROR_NO_ACTIVE_EPISODE, "Simulation status is invalid and cannot be recovered. Reset simulation");
+    }
+
+    build_snapshot(sim);
+    *out_state = sim->snapshot;
+
+    bool too_small = false;
+    if(sim->snapshot.projectile_count) {
+        if(!buffers || !buffers->projectiles || buffers->projectile_capacity < sim->snapshot.projectile_count) {
+            too_small = true;
+        } else {
+            memcpy(buffers->projectiles, sim->projectiles, sim->snapshot.projectile_count * sizeof(*sim->projectiles));
+        }
+    }
+    if(sim->snapshot.enemy_count) {
+        if(!buffers || !buffers->enemies || buffers->enemy_capacity < sim->snapshot.enemy_count) {
+            too_small = true;
+        } else {
+            memcpy(buffers->enemies, sim->enemies, sim->snapshot.enemy_count * sizeof(*sim->enemies));
+        }
+    }
+    if(sim->snapshot.item_count) {
+        if(!buffers || !buffers->items || buffers->item_capacity < sim->snapshot.item_count) {
+            too_small = true;
+        } else {
+            memcpy(buffers->items, sim->items, sim->snapshot.item_count * sizeof(*sim->items));
+        }
+    }
+    if(sim->snapshot.laser_count) {
+        if(!buffers || !buffers->lasers || buffers->laser_capacity < sim->snapshot.laser_count) {
+            too_small = true;
+        } else {
+            memcpy(buffers->lasers, sim->lasers, sim->snapshot.laser_count * sizeof(*sim->lasers));
+        }
+    }
+    if(sim->snapshot.laser_point_count) {
+        if(!buffers || !buffers->laser_points || buffers->laser_point_capacity < sim->snapshot.laser_point_count) {
+            too_small = true;
+        } else {
+            memcpy(buffers->laser_points, sim->laser_points, sim->snapshot.laser_point_count * sizeof(*sim->laser_points));
+        }
+    }
+
+    if(too_small) {
+        return set_error(sim, TAISEI_SIM_ERROR_BUFFER_TOO_SMALL, "One or more state buffers are too small. Read TaiseiSimState");
+    }
+
+    return TAISEI_SIM_OK;
+}

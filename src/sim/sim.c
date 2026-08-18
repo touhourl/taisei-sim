@@ -1032,3 +1032,69 @@ TaiseiSimResult taisei_sim_reset(TaiseiSim *sim, const TaiseiSimEpisodeConfig *e
     stats_init(&global.plr.stats);
     global.plr.mode = mode;
 
+    StageStartOverride override = {
+        .flags = STAGE_START_OVERRIDE_SEED | STAGE_START_OVERRIDE_START_TIME |
+                 STAGE_START_OVERRIDE_GRAZE,
+        .seed = episode->rng_seed,
+        .start_time = episode->start_time == TAISEI_SIM_USE_DEFAULT_U64 ? episode->rng_seed : episode->start_time,
+        .graze = episode->initial_graze,
+    };
+
+    if(episode->initial_lives != TAISEI_SIM_USE_DEFAULT_I32) {
+        override.flags |= STAGE_START_OVERRIDE_LIVES;
+        override.lives = episode->initial_lives;
+    }
+    if(episode->initial_bombs != TAISEI_SIM_USE_DEFAULT_I32) {
+        override.flags |= STAGE_START_OVERRIDE_BOMBS;
+        override.bombs = episode->initial_bombs;
+    }
+    if(episode->initial_life_fragments != TAISEI_SIM_USE_DEFAULT_I32) {
+        override.flags |= STAGE_START_OVERRIDE_LIFE_FRAGMENTS;
+        override.life_fragments = episode->initial_life_fragments;
+    }
+    if(episode->initial_bomb_fragments != TAISEI_SIM_USE_DEFAULT_I32) {
+        override.flags |= STAGE_START_OVERRIDE_BOMB_FRAGMENTS;
+        override.bomb_fragments = episode->initial_bomb_fragments;
+    }
+    if(episode->initial_power != TAISEI_SIM_USE_DEFAULT_I32) {
+        override.flags |= STAGE_START_OVERRIDE_POWER;
+        override.power = episode->initial_power;
+    }
+    if(episode->initial_point_item_value != TAISEI_SIM_USE_DEFAULT_I32) {
+        override.flags |= STAGE_START_OVERRIDE_PIV;
+        override.point_item_value = episode->initial_point_item_value;
+    }
+    if(episode->initial_score != TAISEI_SIM_USE_DEFAULT_U64) {
+        override.flags |= STAGE_START_OVERRIDE_SCORE;
+        override.score = episode->initial_score;
+    }
+
+    stage_set_start_override(&override);
+    sim->desired_buttons = 0;
+    sim->applied_buttons = 0;
+    sim->initial_seed = episode->rng_seed;
+    sim->start_time = override.start_time;
+    sim->status = TAISEI_SIM_STATUS_RUNNING;
+    sim->episode_active = true;
+    sim->replay_complete = false;
+    sim->recent_boss_damage = 0;
+    sim->previous_player_position = vec2_from_complex(global.plr.pos);
+    sim->error[0] = 0;
+
+    stage_enter(stage, &sim->resources, CALLCHAIN(sim_stage_finished, sim));
+    if(!eventloop_is_active()) {
+        sim->episode_active = false;
+        sim->status = TAISEI_SIM_STATUS_ERROR;
+        return set_error(sim, TAISEI_SIM_ERROR_INTERNAL, "Taisei didn't reg stage event loop");
+    }
+
+    // This is the same initialization frame executed by what we played; it
+    // does not process an discrete action. The first taisei_sim_step() do this.
+    LogicFrameAction init_action = eventloop_step_logic();
+    if(init_action == LFRAME_STOP && sim->episode_active) {
+        sim->status = TAISEI_SIM_STATUS_ERROR;
+        return set_error(sim, TAISEI_SIM_ERROR_INTERNAL, "Stage stopped during its init frames");
+    }
+    sim->previous_player_position = vec2_from_complex(global.plr.pos);
+    return TAISEI_SIM_OK;
+}

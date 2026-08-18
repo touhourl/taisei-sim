@@ -1212,3 +1212,51 @@ TaiseiSimResult taisei_sim_get_state(TaiseiSim *sim, TaiseiSimState *out_state, 
 
     return TAISEI_SIM_OK;
 }
+
+TaiseiSimResult taisei_sim_save_replay(TaiseiSim *sim, const char *path) {
+    TaiseiSimResult valid = validate_sim(sim);
+    if(valid != TAISEI_SIM_OK) {
+        return valid;
+    }
+    if(path == NULL || !*path) {
+        return set_error(sim, TAISEI_SIM_ERROR_INVALID_ARGUMENT, "Replay path is null");
+    }
+    if(sim->status == TAISEI_SIM_STATUS_INVALID) {
+        return set_error(sim, TAISEI_SIM_ERROR_NO_ACTIVE_EPISODE, "Reset the simulation please");
+    }
+    if(sim->episode_active || !sim->replay_complete) {
+        return set_error(sim, TAISEI_SIM_ERROR_EPISODE_RUNNING, "Replay saved once after the episode terminates");
+    }
+    if(!replay_save_syspath(&sim->replay, path, REPLAY_STRUCT_VERSION_WRITE)) {
+        return set_error(sim, TAISEI_SIM_ERROR_IO, "Failed to save the replay, unknown reason");
+    }
+    return TAISEI_SIM_OK;
+}
+
+TaiseiSimResult taisei_sim_destroy(TaiseiSim *sim) {
+    TaiseiSimResult valid = validate_sim(sim);
+    if(valid != TAISEI_SIM_OK) {
+        return valid;
+    }
+
+    TaiseiSimResult aborted = abort_active_episode(sim);
+    if(aborted != TAISEI_SIM_OK) {
+        return aborted;
+    }
+
+    stage_set_external_input_hook(NULL, NULL);
+    replay_state_deinit(&global.replay.input);
+    replay_state_deinit(&global.replay.output);
+    if(sim->replay_initialized) {
+        replay_reset(&sim->replay);
+    }
+    res_group_release(&sim->resources);
+    mem_free(sim->projectiles);
+    mem_free(sim->enemies);
+    mem_free(sim->items);
+    mem_free(sim->lasers);
+    mem_free(sim->laser_points);
+    active_sim = NULL;
+    mem_free(sim);
+    return TAISEI_SIM_OK;
+}

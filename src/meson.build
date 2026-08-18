@@ -476,6 +476,8 @@ else
         link_with : libtaisei,
     )
 
+    subdir('sim')
+
     have_taisei_exe = true
     taisei = executable(taisei_basename, taisei_main_src,
         dependencies : stages_live_reload ? libtaisei_dep.as_link_whole() : libtaisei_dep,

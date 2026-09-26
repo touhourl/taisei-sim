@@ -462,7 +462,7 @@ static void credits_draw_entry(CreditsEntry *e) {
 		r_mat_mv_translate(0, SCREEN_W * pow(1 - fadeout, 2) * -0.5, 0);
 	}
 
-	r_color(RGBA_MUL_ALPHA(1, 1, 1, fadein * fadeout));
+	Color clr = RGBA_MUL_ALPHA(1, 1, 1, fadein * fadeout);
 	r_mat_mv_translate(0, h_body * -0.5, 0);
 
 	for(int i = 0; i < e->lines; ++i) {
@@ -473,11 +473,12 @@ static void credits_draw_entry(CreditsEntry *e) {
 			float halfheight = yukkuri_spr->h * 0.5;
 
 			r_draw_sprite(&(SpriteParams) {
-				.sprite_ptr = yukkuri_spr,
+				.sprite = yukkuri_spr,
 				.pos.y = -60 * elevation * fadein + halfheight * squeeze,
-				.shader_ptr = res_shader("sprite_default"),
+				.shader = res_shader("sprite_default"),
 				.scale.x = 1.0 - squeeze,
 				.scale.y = 1.0 + squeeze,
+				.color = clr,
 			});
 
 			r_mat_mv_translate(0, halfheight, 0);
@@ -487,6 +488,7 @@ static void credits_draw_entry(CreditsEntry *e) {
 			text_draw(e->data[i], &(TextParams) {
 				.align = ALIGN_CENTER,
 				.font_ptr = font,
+				.color = clr,
 			});
 			r_shader_standard();
 			r_mat_mv_translate(0, font_get_lineskip(font), 0);

@@ -65,7 +65,7 @@ Boss *create_boss(const char *name, char *ani, cmplx pos) {
 	aniplayer_create(&boss->ani, res_anim(strbuf), "main");
 
 	boss->birthtime = global.frames;
-	boss->zoomcolor = *RGBA(0.1, 0.2, 0.3, 1.0);
+	boss->zoomcolor = RGBA(0.1, 0.2, 0.3, 1.0);
 
 	boss->ent.draw_layer = LAYER_BOSS;
 	boss->ent.draw_func = ent_draw_boss;
@@ -100,7 +100,7 @@ void boss_set_portrait(Boss *boss, const char *name, const char *variant, const 
 	}
 }
 
-static double draw_boss_text(Alignment align, float x, float y, const char *text, Font *fnt, const Color *clr) {
+static double draw_boss_text(Alignment align, float x, float y, const char *text, Font *fnt, Color clr) {
 	return text_draw(text, &(TextParams) {
 		.shader = "text_hud",
 		.pos = { x, y },
@@ -375,8 +375,8 @@ static void draw_radial_healthbar(Boss *boss) {
 	r_shader("healthbar_radial");
 	r_uniform_vec4_rgba("borderColor",   RGBA(0.75, 0.75, 0.75, 0.75));
 	r_uniform_vec4_rgba("glowColor",     RGBA(0.5, 0.5, 1.0, 0.75));
-	r_uniform_vec4_rgba("fillColor",     &boss->healthbar.fill_color);
-	r_uniform_vec4_rgba("altFillColor",  &boss->healthbar.fill_altcolor);
+	r_uniform_vec4_rgba("fillColor",     boss->healthbar.fill_color);
+	r_uniform_vec4_rgba("altFillColor",  boss->healthbar.fill_altcolor);
 	r_uniform_vec4_rgba("coreFillColor", RGBA(0.8, 0.8, 0.8, 0.5));
 	r_uniform_vec2("fill", boss->healthbar.fill_total, boss->healthbar.fill_alt);
 	r_uniform_float("opacity", boss->healthbar.opacity);
@@ -402,8 +402,8 @@ static void draw_linear_healthbar(Boss *boss) {
 	r_shader("healthbar_linear");
 	r_uniform_vec4_rgba("borderColor",   RGBA(0.75, 0.75, 0.75, 0.75));
 	r_uniform_vec4_rgba("glowColor",     RGBA(0.5, 0.5, 1.0, 0.75));
-	r_uniform_vec4_rgba("fillColor",     &boss->healthbar.fill_color);
-	r_uniform_vec4_rgba("altFillColor",  &boss->healthbar.fill_altcolor);
+	r_uniform_vec4_rgba("fillColor",     boss->healthbar.fill_color);
+	r_uniform_vec4_rgba("altFillColor",  boss->healthbar.fill_altcolor);
 	r_uniform_vec4_rgba("coreFillColor", RGBA(0.8, 0.8, 0.8, 0.5));
 	r_uniform_vec2("fill", boss->healthbar.fill_total, boss->healthbar.fill_alt);
 	r_uniform_float("opacity", opacity);
@@ -439,8 +439,8 @@ static void draw_spell_name(Boss *b, int time, bool healthbar_radial) {
 	float opacity = opacity_noplr * b->hud.plrproximity_opacity;
 
 	r_draw_sprite(&(SpriteParams) {
-		.sprite_ptr = res_sprite("spell"),
-		.shader_ptr = res_shader("sprite_default"),
+		.sprite = res_sprite("spell"),
+		.shader = res_shader("sprite_default"),
 		.pos = { (VIEWPORT_W - 128), y_offset * (1 - pow(1 - f2, 5)) + VIEWPORT_H * pow(1 - f2, 2) },
 		.color = color_mul_scalar(RGBA(1, 1, 1, f2 * 0.5), opacity * f2) ,
 		.scale.both = 3 - 2 * (1 - pow(1 - f2, 3)),
@@ -491,8 +491,9 @@ static void draw_spell_name(Boss *b, int time, bool healthbar_radial) {
 		bool kern = font_get_kerning_enabled(font);
 		font_set_kerning_enabled(font, false);
 
-		// TODO: display plrmode-specific data?
-		snprintf(buf, sizeof(buf), "%u / %u", p->global.num_cleared, p->global.num_played);
+		auto plrmode = global.plr.mode;
+		auto plrprog = &p->per_plrmode[plrmode->character->id][plrmode->shot_mode];
+		snprintf(buf, sizeof(buf), "%u / %u", plrprog->num_cleared, plrprog->num_played);
 
 		draw_boss_text(ALIGN_RIGHT,
 			VIEWPORT_W - 10 - text_width(font, buf, 0), 0,
@@ -571,7 +572,7 @@ static void draw_spell_portrait(Boss *b, int time) {
 		float o = 1 - smoothstep(start + ofs, end + ofs, t);
 
 		r_draw_sprite(&(SpriteParams) {
-			.sprite_ptr = char_spr,
+			.sprite = char_spr,
 			.pos = { char_spr->w * 0.5 + VIEWPORT_W * powf(1 - char_in, 4 - i * 0.3f) - i + char_xofs, VIEWPORT_H - char_spr->h * 0.5 },
 			.color = color_mul_scalar(color_add(RGBA(0.2, 0.2, 0.2, 0), RGBA(i==1, i==2, i==3, 0)), char_opacity_in * (1 - char_in * o) * o),
 			.flip.x = true,
@@ -580,7 +581,7 @@ static void draw_spell_portrait(Boss *b, int time) {
 	}
 
 	r_draw_sprite(&(SpriteParams) {
-		.sprite_ptr = char_spr,
+		.sprite = char_spr,
 		.pos = { char_spr->w * 0.5f + VIEWPORT_W * powf(1 - char_in, 4) + char_xofs, VIEWPORT_H - char_spr->h * 0.5f },
 		.color = RGBA_MUL_ALPHA(1, 1, 1, char_opacity * min(1, char_in * 2) * (1 - min(1, (1 - char_out) * 5))),
 		.flip.x = true,
@@ -598,19 +599,19 @@ static void boss_glow_draw(Projectile *p, int t, ProjDrawRuleArgs args) {
 	Color c = p->color;
 
 	c.a = 0;
-	color_mul_scalar(&c, 1.5 - s);
+	c = color_mul_scalar(c, 1.5 - s);
 
 	r_draw_sprite(&(SpriteParams) {
 		.pos = { re(p->pos), im(p->pos) },
-		.sprite_ptr = p->sprite,
+		.sprite = p->sprite,
 		.scale.both = s,
-		.color = &c,
-		.shader_params = &(ShaderCustomParams){{ deform }},
-		.shader_ptr = p->shader,
+		.color = c,
+		.shader_params.vec = { deform },
+		.shader = p->shader,
 	});
 }
 
-static Projectile *spawn_boss_glow(Boss *boss, const Color *clr, int timeout) {
+static Projectile *spawn_boss_glow(Boss *boss, Color clr, int timeout) {
 	return PARTICLE(
 		.sprite_ptr = aniplayer_get_frame(&boss->ani),
 		.pos = boss->pos + boss_get_sprite_offset(boss),
@@ -627,27 +628,23 @@ DEFINE_TASK(boss_particles) {
 	Boss *boss = TASK_BIND(ARGS.boss);
 	DECLARE_ENT_ARRAY(Projectile, smoke_parts, 16);
 
+	YIELD;
 	cmplx prev_pos = boss->pos;
 
-	for(;;YIELD) {
-		ENT_ARRAY_FOREACH(&smoke_parts, Projectile *p, {
-			p->pos += boss->pos - prev_pos;
-		});
-		prev_pos = boss->pos;
-
-		Color *glowcolor = &boss->glowcolor;
-		Color *shadowcolor = &boss->shadowcolor;
-
+	for(;;) {
 		Attack *cur = boss->current;
 		bool is_spell = cur && ATTACK_IS_SPELL(cur->type) && !attack_has_finished(cur);
 		bool is_extra = cur && cur->type == AT_ExtraSpell && attack_has_started(cur);
 
 		if(!(global.frames % 13) && !is_extra) {
+			Color shadowcolor = boss->shadowcolor;
+			shadowcolor.a = 0;
+
 			ENT_ARRAY_COMPACT(&smoke_parts);
 			ENT_ARRAY_ADD(&smoke_parts, PARTICLE(
 				.sprite = "smoke",
 				.pos = cdir(global.frames) + boss->pos,
-				.color = RGBA(shadowcolor->r, shadowcolor->g, shadowcolor->b, 0.0),
+				.color = shadowcolor,
 				.timeout = 180,
 				.draw_rule = pdraw_timeout_scale(2, 0.01),
 				.angle = rng_angle(),
@@ -662,8 +659,16 @@ DEFINE_TASK(boss_particles) {
 		) {
 			float glowstr = 0.5;
 			float a = (1.0 - glowstr) + glowstr * psin(global.frames/15.0);
-			spawn_boss_glow(boss, color_mul_scalar(COLOR_COPY(glowcolor), a), 24);
+			spawn_boss_glow(boss, color_mul_scalar(boss->glowcolor, a), 24);
 		}
+
+		YIELD;
+
+		ENT_ARRAY_FOREACH(&smoke_parts, Projectile *p, {
+			p->pos += boss->pos - prev_pos;
+		});
+
+		prev_pos = boss->pos;
 	}
 }
 
@@ -681,9 +686,9 @@ void draw_boss_background(Boss *boss) {
 
 	r_mat_mv_scale(f, f, 1);
 	r_draw_sprite(&(SpriteParams) {
-		.sprite_ptr = res_sprite("boss_circle"),
-		.shader_ptr = res_shader("sprite_particle"),
-		.shader_params = &(ShaderCustomParams) { 1.0f },
+		.sprite = res_sprite("boss_circle"),
+		.shader = res_shader("sprite_particle"),
+		.shader_params.vec = { 1.0f },
 		.color = RGBA(1, 1, 1, 0),
 	});
 	r_mat_mv_pop();
@@ -707,14 +712,14 @@ static void ent_draw_boss(EntityInterface *ent) {
 		boss_alpha = (1 - t) + 0.3;
 	}
 
-	Color *c = RGB(1.0f, 1.0f - red, 1.0f - red * 0.5f);
-	color_lerp(c, RGB(0.2f, 0.2f, 0.2f), boss->background_transition);
-	color_mul_scalar(c, boss_alpha);
+	Color c = RGB(1.0f, 1.0f - red, 1.0f - red * 0.5f);
+	c = color_lerp(c, RGB(0.2f, 0.2f, 0.2f), boss->background_transition);
+	c = color_mul_scalar(c, boss_alpha);
 
 	r_draw_sprite(&(SpriteParams) {
-		.sprite_ptr = aniplayer_get_frame(&boss->ani),
-		.shader_ptr = res_shader("sprite_particle"),
-		.shader_params = &(ShaderCustomParams) { 1.0f },
+		.sprite = aniplayer_get_frame(&boss->ani),
+		.shader = res_shader("sprite_particle"),
+		.shader_params.vec = { 1.0f },
 		.pos.as_cmplx = boss->pos + boss_get_sprite_offset(boss),
 		.color = c,
 	});
@@ -747,15 +752,15 @@ void draw_boss_overlay(Boss *boss) {
 		Color clr_int, clr_fract;
 
 		if(remaining < 6) {
-			clr_int = *RGB(1.0, 0.2, 0.2);
+			clr_int = RGB(1.0, 0.2, 0.2);
 		} else if(remaining < 11) {
-			clr_int = *RGB(1.0, 1.0, 0.2);
+			clr_int = RGB(1.0, 1.0, 0.2);
 		} else {
-			clr_int = *RGB(1.0, 1.0, 1.0);
+			clr_int = RGB(1.0, 1.0, 1.0);
 		}
 
-		color_mul_scalar(&clr_int, o);
-		clr_fract = *RGBA(clr_int.r * 0.5, clr_int.g * 0.5, clr_int.b * 0.5, clr_int.a);
+		clr_int = color_mul_scalar(clr_int, o);
+		clr_fract = RGBA(clr_int.r * 0.5, clr_int.g * 0.5, clr_int.b * 0.5, clr_int.a);
 
 		Font *f_int = res_font("standard");
 		Font *f_fract = res_font("small");
@@ -776,11 +781,11 @@ void draw_boss_overlay(Boss *boss) {
 		}
 
 		r_shader("text_hud");
-		draw_fraction(remaining, align, pos_x, pos_y, f_int, f_fract, &clr_int, &clr_fract, true);
+		draw_fraction(remaining, align, pos_x, pos_y, f_int, f_fract, clr_int, clr_fract, true);
 		r_shader("sprite_default");
 
 		// remaining spells
-		Color *clr = RGBA(0.7 * o, 0.7 * o, 0.7 * o, 0.7 * o);
+		Color clr = RGBA(0.7 * o, 0.7 * o, 0.7 * o, 0.7 * o);
 		Sprite *star = res_sprite("star");
 		float x = 10 + star->w * 0.5;
 		bool spell_found = false;
@@ -794,7 +799,7 @@ void draw_boss_overlay(Boss *boss) {
 				// I guess we can just always skip the first one
 				if(spell_found) {
 					r_draw_sprite(&(SpriteParams) {
-						.sprite_ptr = star,
+						.sprite = star,
 						.pos = { x, 40 + 8 * !radial_style },
 						.color = clr,
 					});
@@ -1203,8 +1208,8 @@ void process_boss(Boss **pboss) {
 		float t = (global.frames - boss->current->endtime)/(float)BOSS_DEATH_DELAY + 1;
 		RNG_ARRAY(rng, 2);
 
-		Color *clr = RGBA_MUL_ALPHA(0.1 + sin(10*t), 0.1 + cos(10*t), 0.5, t);
-		clr->a = 0;
+		Color clr = RGBA_MUL_ALPHA(0.1 + sin(10*t), 0.1 + cos(10*t), 0.5, t);
+		clr.a = 0;
 
 		PARTICLE(
 			.sprite = "petal",
@@ -1225,7 +1230,7 @@ void process_boss(Boss **pboss) {
 
 		if(t == 1) {
 			for(int i = 0; i < 10; ++i) {
-				spawn_boss_glow(boss, &boss->glowcolor, 60 + 20 * i);
+				spawn_boss_glow(boss, boss->glowcolor, 60 + 20 * i);
 			}
 
 			for(int i = 0; i < 256; i++) {

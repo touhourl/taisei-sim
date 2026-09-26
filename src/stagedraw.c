@@ -403,6 +403,30 @@ static void stage_draw_collision_areas(void) {
 		return;
 	}
 
+	r_shader("sprite_rect");
+
+	for(Projectile *p = global.projs.first; p; p = p->next) {
+		real cd = 2 * projectile_cull_distance(p);
+		r_draw_sprite(&(SpriteParams) {
+			.color = color_mul_scalar(RGBA(0, 0, 1, 0), 0.5),
+			.sprite = &stagedraw.dummy,
+			.pos.as_cmplx = p->pos,
+			.scale = { cd, cd },
+			.blend = BLEND_PREMUL_ALPHA,
+		});
+	}
+
+	for(Projectile *p = global.projs.first; p; p = p->next) {
+		r_draw_sprite(&(SpriteParams) {
+			.color = color_mul_scalar(RGBA(0, 1, 0, 0), 0.2),
+			.sprite = &stagedraw.dummy,
+			.pos.as_cmplx = p->pos,
+			.scale.as_cmplx = projectile_size(p),
+			.rotation.angle = p->angle + M_PI/2,
+			.blend = BLEND_PREMUL_ALPHA,
+		});
+	}
+
 	r_shader("sprite_filled_circle");
 	r_uniform_vec4("color_inner", 0, 0, 0, 1);
 	r_uniform_vec4("color_outer", 1, 1, 1, 0.1);
@@ -412,11 +436,11 @@ static void stage_draw_collision_areas(void) {
 
 		if(re(gsize)) {
 			r_draw_sprite(&(SpriteParams) {
-				.color = RGB(0, 0.5, 0.5),
-				.sprite_ptr = &stagedraw.dummy,
+				.color = RGB(0, 0.2, 0.2),
+				.sprite = &stagedraw.dummy,
 				.pos = { re(p->pos), im(p->pos) },
 				.rotation.angle = p->angle + M_PI/2,
-				.scale = { .x = re(gsize), .y = im(gsize) },
+				.scale.as_cmplx = gsize,
 				.blend = BLEND_SUB,
 			});
 		}
@@ -428,11 +452,12 @@ static void stage_draw_collision_areas(void) {
 
 	for(Projectile *p = global.projs.first; p; p = p->next) {
 		r_draw_sprite(&(SpriteParams) {
-			.sprite_ptr = &stagedraw.dummy,
+			.sprite = &stagedraw.dummy,
 			.pos = { re(p->pos), im(p->pos) },
 			.rotation.angle = p->angle + M_PI/2,
 			.scale = { .x = re(p->collision_size), .y = im(p->collision_size) },
 			.blend = BLEND_ALPHA,
+			.color = RGB(1, 1, 1),
 		});
 	}
 
@@ -441,27 +466,30 @@ static void stage_draw_collision_areas(void) {
 
 		if(hurt_radius > 0) {
 			r_draw_sprite(&(SpriteParams) {
-				.sprite_ptr = &stagedraw.dummy,
+				.sprite = &stagedraw.dummy,
 				.pos = { re(e->pos), im(e->pos) },
 				.scale = { .x = hurt_radius * 2, .y = hurt_radius * 2 },
 				.blend = BLEND_ALPHA,
+				.color = RGB(1, 1, 1),
 			});
 		}
 	}
 
 	if(global.boss && boss_is_player_collision_active(global.boss)) {
 		r_draw_sprite(&(SpriteParams) {
-			.sprite_ptr = &stagedraw.dummy,
+			.sprite = &stagedraw.dummy,
 			.pos = { re(global.boss->pos), im(global.boss->pos) },
 			.scale = { .x = BOSS_HURT_RADIUS * 2, .y = BOSS_HURT_RADIUS * 2 },
 			.blend = BLEND_ALPHA,
+			.color = RGB(1, 1, 1),
 		});
 	}
 
 	r_draw_sprite(&(SpriteParams) {
-		.sprite_ptr = &stagedraw.dummy,
+		.sprite = &stagedraw.dummy,
 		.pos = { re(global.plr.pos), im(global.plr.pos) },
 		.scale.both = 2, // NOTE: actual player is a singular point
+		.color = RGB(1, 1, 1),
 	});
 
 	// TODO: perhaps handle lasers somehow
@@ -541,12 +569,13 @@ static void draw_spellbg(int t) {
 	}
 
 	r_draw_sprite(&(SpriteParams) {
-		.sprite_ptr = res_sprite("boss_spellcircle0"),
-		.shader_ptr = res_shader("sprite_default"),
+		.sprite = res_sprite("boss_spellcircle0"),
+		.shader = res_shader("sprite_default"),
 		.pos = { re(b->pos), im(b->pos) },
 		.rotation.angle = global.frames * 7.0 * DEG2RAD,
 		.rotation.vector = { 0, 0, -1 },
 		.scale.both = scale,
+		.color = RGB(1, 1, 1),
 	});
 }
 
@@ -691,7 +720,7 @@ static bool boss_distortion_rule(Framebuffer *fb) {
 	r_uniform_float("blur_rad", 1.5*(0.2+0.025*sin(global.frames/15.0)));
 	r_uniform_float("rad", 0.24);
 	r_uniform_float("ratio", (float)VIEWPORT_H/VIEWPORT_W);
-	r_uniform_vec4_rgba("color", &global.boss->zoomcolor);
+	r_uniform_vec4_rgba("color", global.boss->zoomcolor);
 	draw_framebuffer_tex(fb, VIEWPORT_W, VIEWPORT_H);
 
 	r_state_pop();
@@ -904,7 +933,7 @@ void stage_draw_overlay(void) {
 static void postprocess_prepare(Framebuffer *fb, ShaderProgram *s, void *arg) {
 	r_uniform_int("frames", global.frames);
 	r_uniform_vec2("viewport", VIEWPORT_W, VIEWPORT_H);
-	r_uniform_vec2("player", re(global.plr.pos), VIEWPORT_H - im(global.plr.pos));
+	r_uniform_vec2_complex("player", global.plr.pos);
 }
 
 static inline void begin_viewport_shake(void) {
@@ -1018,16 +1047,10 @@ static void set_bg_color_filter_uniforms(void) {
 }
 
 void stage_draw_scene(StageInfo *stage) {
-#ifdef DEBUG
-	bool key_nobg = gamekeypressed(KEY_NOBACKGROUND);
-#else
-	bool key_nobg = false;
-#endif
-
 	FBPair *background = stage_get_fbpair(FBPAIR_BG);
 	FBPair *foreground = stage_get_fbpair(FBPAIR_FG);
 
-	bool draw_bg = !config_get_int(CONFIG_NO_STAGEBG) && !key_nobg;
+	bool draw_bg = !config_get_int(CONFIG_NO_STAGEBG);
 
 	if(draw_bg) {
 		stage_render_bg(stage);
@@ -1053,7 +1076,7 @@ void stage_draw_scene(StageInfo *stage) {
 		r_state_pop();
 
 		coevent_signal(&stagedraw.events.background_drawn);
-	} else if(!key_nobg) {
+	} else {
 		r_clear(BUFFER_COLOR, RGBA(0, 0, 0, 1), 1);
 	}
 
@@ -1118,7 +1141,7 @@ void stage_draw_scene(StageInfo *stage) {
 #define HUD_X_SECONDARY_OFS_VALUE (HUD_X_SECONDARY_OFS_LABEL + 60)
 
 struct glyphcb_state {
-	Color *color1, *color2;
+	Color color1, color2;
 };
 
 static void draw_numeric_callback(Font *font, charcode_t charcode, SpriteInstanceAttribs *spr_attribs, void *userdata) {
@@ -1128,7 +1151,7 @@ static void draw_numeric_callback(Font *font, charcode_t charcode, SpriteInstanc
 		st->color1 = st->color2;
 	}
 
-	spr_attribs->rgba = *st->color1;
+	spr_attribs->rgba = st->color1;
 }
 
 static inline void stage_draw_hud_power_value(float xpos, float ypos) {
@@ -1137,18 +1160,18 @@ static inline void stage_draw_hud_power_value(float xpos, float ypos) {
 
 	int pw = global.plr.power_stored;
 
-	Color *c_whole, c_whole_buf, *c_fract, c_fract_buf;
-	Color *c_op_mod = RGBA(1, 0.2 + 0.3 * psin(global.frames / 10.0), 0.2, 1.0);
+	Color c_whole, c_fract;
+	Color c_op_mod = RGBA(1, 0.2 + 0.3 * psin(global.frames / 10.0), 0.2, 1.0);
 
 	if(pw <= PLR_MAX_POWER_EFFECTIVE) {
-		c_whole = &stagedraw.hud_text.color.active;
-		c_fract = &stagedraw.hud_text.color.inactive;
+		c_whole = stagedraw.hud_text.color.active;
+		c_fract = stagedraw.hud_text.color.inactive;
 	} else if(pw - PLR_MAX_POWER_EFFECTIVE < 100) {
-		c_whole = &stagedraw.hud_text.color.active;
-		c_fract = color_mul(color_copy(&c_fract_buf, &stagedraw.hud_text.color.inactive), c_op_mod);
+		c_whole = stagedraw.hud_text.color.active;
+		c_fract = color_mul(stagedraw.hud_text.color.inactive, c_op_mod);
 	} else {
-		c_whole = color_mul(color_copy(&c_whole_buf, &stagedraw.hud_text.color.active), c_op_mod);
-		c_fract = color_mul(color_copy(&c_fract_buf, &stagedraw.hud_text.color.inactive), c_op_mod);
+		c_whole = color_mul(stagedraw.hud_text.color.active, c_op_mod);
+		c_fract = color_mul(stagedraw.hud_text.color.inactive, c_op_mod);
 	}
 
 	xpos = draw_fraction(
@@ -1165,7 +1188,7 @@ static inline void stage_draw_hud_power_value(float xpos, float ypos) {
 
 	xpos += text_draw(" / ", &(TextParams) {
 		.pos = { xpos, ypos },
-		.color = &stagedraw.hud_text.color.active,
+		.color = stagedraw.hud_text.color.active,
 		.align = ALIGN_LEFT,
 		.font_ptr = fnt_int,
 	});
@@ -1177,8 +1200,8 @@ static inline void stage_draw_hud_power_value(float xpos, float ypos) {
 		ypos,
 		fnt_int,
 		fnt_fract,
-		&stagedraw.hud_text.color.active,
-		&stagedraw.hud_text.color.inactive,
+		stagedraw.hud_text.color.active,
+		stagedraw.hud_text.color.inactive,
 		false
 	);
 }
@@ -1194,9 +1217,10 @@ static void stage_draw_hud_score(Alignment a, float xpos, float ypos, char *buf,
 		.pos = { xpos, ypos },
 		.font = "standard",
 		.align = ALIGN_RIGHT,
+		.color = {},
 		.glyph_callback = {
 			draw_numeric_callback,
-			&(struct glyphcb_state) { &stagedraw.hud_text.color.inactive, &stagedraw.hud_text.color.active },
+			&(struct glyphcb_state) { stagedraw.hud_text.color.inactive, stagedraw.hud_text.color.active },
 		}
 	});
 
@@ -1224,6 +1248,7 @@ static void stage_draw_hud_objpool_stats(float x, float y, float width) {
 		.pos = { x, y },
 		.font_ptr = font,
 		.align = ALIGN_LEFT,
+		.color = RGB(1, 1, 1),
 	});
 
 	snprintf(buf, sizeof(buf),
@@ -1236,6 +1261,7 @@ static void stage_draw_hud_objpool_stats(float x, float y, float width) {
 		.pos = { x + width, y },
 		.font_ptr = font,
 		.align = ALIGN_RIGHT,
+		.color = RGB(1, 1, 1),
 	});
 
 	y += lineskip * 1.5;
@@ -1257,12 +1283,14 @@ static void stage_draw_hud_objpool_stats(float x, float y, float width) {
 			.pos = { x, y },
 			.font_ptr = font,
 			.align = ALIGN_LEFT,
+			.color = RGB(1, 1, 1),
 		});
 
 		text_draw(buf, &(TextParams) {
 			.pos = { x + width, y },
 			.font_ptr = font,
 			.align = ALIGN_RIGHT,
+			.color = RGB(1, 1, 1),
 		});
 
 		y += lineskip;
@@ -1306,7 +1334,7 @@ static void draw_graph(float x, float y, float w, float h) {
 	r_mat_mv_pop();
 }
 
-static float draw_label(const char *label_str, double y_ofs, struct labels_s* labels, Color *clr) {
+static float draw_label(const char *label_str, double y_ofs, struct labels_s* labels, Color clr) {
 	return text_draw(label_str, &(TextParams) {
 		.font_ptr = stagedraw.hud_text.font,
 		.shader_ptr = stagedraw.hud_text.shader,
@@ -1322,11 +1350,11 @@ static void stage_draw_hud_text(struct labels_s* labels) {
 
 	r_shader_ptr(stagedraw.hud_text.shader);
 
-	Color *lb_label_clr = color_mul(COLOR_COPY(&labels->lb_baseclr), &stagedraw.hud_text.color.label);
+	Color lb_label_clr = color_mul(labels->lb_baseclr, stagedraw.hud_text.color.label);
 
 	// Labels
-	draw_label(_("Hi-Score:"),    labels->y.hiscore, labels, &stagedraw.hud_text.color.label);
-	draw_label(_("Score:"),       labels->y.score,   labels, &stagedraw.hud_text.color.label);
+	draw_label(_("Hi-Score:"),    labels->y.hiscore, labels, stagedraw.hud_text.color.label);
+	draw_label(_("Score:"),       labels->y.score,   labels, stagedraw.hud_text.color.label);
 	draw_label(_("Lives:"),       labels->y.lives,   labels, lb_label_clr);
 	draw_label(_("Spell Cards:"), labels->y.bombs,   labels, lb_label_clr);
 
@@ -1335,13 +1363,13 @@ static void stage_draw_hud_text(struct labels_s* labels) {
 	r_mat_mv_push();
 	r_mat_mv_translate(HUD_X_SECONDARY_OFS_LABEL, 0, 0);
 	secondary_label_w = max(secondary_label_w,
-		draw_label(_("Power:"),       labels->y.power,   labels, &stagedraw.hud_text.color.label_power));
+		draw_label(_("Power:"),       labels->y.power,   labels, stagedraw.hud_text.color.label_power));
 	secondary_label_w = max(secondary_label_w,
-		draw_label(_("Value:"),       labels->y.value,   labels, &stagedraw.hud_text.color.label_value));
+		draw_label(_("Value:"),       labels->y.value,   labels, stagedraw.hud_text.color.label_value));
 	secondary_label_w = max(secondary_label_w,
-		draw_label(_("Volts:"),       labels->y.voltage, labels, &stagedraw.hud_text.color.label_voltage));
+		draw_label(_("Volts:"),       labels->y.voltage, labels, stagedraw.hud_text.color.label_voltage));
 	secondary_label_w = max(secondary_label_w,
-		draw_label(_("Graze:"),       labels->y.graze,   labels, &stagedraw.hud_text.color.label_graze));
+		draw_label(_("Graze:"),       labels->y.graze,   labels, stagedraw.hud_text.color.label_graze));
 	r_mat_mv_pop();
 
 	float secondary_value_ofs = max(
@@ -1353,17 +1381,21 @@ static void stage_draw_hud_text(struct labels_s* labels) {
 
 	// Lives and Bombs (N/A)
 	if(global.stage->type == STAGE_SPELL) {
-		r_color(color_mul_scalar(COLOR_COPY(&labels->lb_baseclr), 0.7));
-		text_draw(_("N/A"), &(TextParams) { .pos = { HUD_EFFECTIVE_WIDTH, labels->y.lives }, .font_ptr = stagedraw.hud_text.font, .align = ALIGN_RIGHT });
-		text_draw(_("N/A"), &(TextParams) { .pos = { HUD_EFFECTIVE_WIDTH, labels->y.bombs }, .font_ptr = stagedraw.hud_text.font, .align = ALIGN_RIGHT });
-		r_color4(1, 1, 1, 1.0);
+		TextParams tp = {
+			.pos = { HUD_EFFECTIVE_WIDTH, labels->y.lives },
+			.font_ptr = stagedraw.hud_text.font,
+			.align = ALIGN_RIGHT,
+			.color = color_mul_scalar(labels->lb_baseclr, 0.7),
+		};
+		tp.pos.y = labels->y.lives; text_draw(_("N/A"), &tp);
+		tp.pos.y = labels->y.bombs; text_draw(_("N/A"), &tp);
 	}
 
 	const float res_text_padding = 4;
 
 	// Score left to next extra life
 	if(labels->x.next_life > 0) {
-		Color *next_clr = color_mul(RGBA(0.5, 0.3, 0.4, 0.5), &labels->lb_baseclr);
+		Color next_clr = color_mul(RGBA(0.5, 0.3, 0.4, 0.5), labels->lb_baseclr);
 		format_huge_num(0, global.plr.extralife_threshold - global.plr.points, sizeof(buf), buf);
 		font = res_font("small");
 
@@ -1389,7 +1421,7 @@ static void stage_draw_hud_text(struct labels_s* labels) {
 
 	// Bomb fragments (numeric)
 	if(labels->x.next_bomb > 0) {
-		Color *next_clr = color_mul(RGBA(0.3, 0.5, 0.3, 0.5), &labels->lb_baseclr);
+		Color next_clr = color_mul(RGBA(0.3, 0.5, 0.3, 0.5), labels->lb_baseclr);
 		snprintf(buf, sizeof(buf), "%d / %d", global.plr.bomb_fragments, PLR_MAX_BOMB_FRAGMENTS);
 		font = res_font("small");
 
@@ -1429,9 +1461,10 @@ static void stage_draw_hud_text(struct labels_s* labels) {
 		.pos = { 0, labels->y.value },
 		.shader_ptr = stagedraw.hud_text.shader,
 		.font_ptr = font,
+		.color = {},
 		.glyph_callback = {
 			draw_numeric_callback,
-			&(struct glyphcb_state) { &stagedraw.hud_text.color.inactive, &stagedraw.hud_text.color.active },
+			&(struct glyphcb_state) { stagedraw.hud_text.color.inactive, stagedraw.hud_text.color.active },
 		}
 	});
 
@@ -1439,7 +1472,7 @@ static void stage_draw_hud_text(struct labels_s* labels) {
 	format_huge_num(4, global.plr.voltage, sizeof(buf), buf);
 	float volts_x = 0;
 
-	Color *voltage_tint = global.plr.voltage >= global.voltage_threshold
+	Color voltage_tint = global.plr.voltage >= global.voltage_threshold
 		? RGB(1.0, 0.9, 0.7) // RGB(0.9, 0.7, 1.0)
 		: RGB(1.0, 1.0, 1.0);
 
@@ -1447,11 +1480,12 @@ static void stage_draw_hud_text(struct labels_s* labels) {
 		.pos = { volts_x, labels->y.voltage },
 		.shader_ptr = stagedraw.hud_text.shader,
 		.font_ptr = font,
+		.color = {},
 		.glyph_callback = {
 			draw_numeric_callback,
 			&(struct glyphcb_state) {
-				color_mul(COLOR_COPY(&stagedraw.hud_text.color.inactive), voltage_tint),
-				color_mul(COLOR_COPY(&stagedraw.hud_text.color.active), voltage_tint),
+				color_mul(stagedraw.hud_text.color.inactive, voltage_tint),
+				color_mul(stagedraw.hud_text.color.active, voltage_tint),
 			},
 		}
 	});
@@ -1460,14 +1494,14 @@ static void stage_draw_hud_text(struct labels_s* labels) {
 		.pos = { volts_x, labels->y.voltage },
 		.shader_ptr = stagedraw.hud_text.shader,
 		.font_ptr = font,
-		.color = &stagedraw.hud_text.color.dark,
+		.color = stagedraw.hud_text.color.dark,
 	});
 
 	volts_x += text_draw(" / ", &(TextParams) {
 		.pos = { volts_x, labels->y.voltage },
 		.shader_ptr = stagedraw.hud_text.shader,
 		.font_ptr = font,
-		.color = &stagedraw.hud_text.color.active,
+		.color = stagedraw.hud_text.color.active,
 	});
 
 	format_huge_num(4, global.voltage_threshold, sizeof(buf), buf);
@@ -1476,9 +1510,10 @@ static void stage_draw_hud_text(struct labels_s* labels) {
 		.pos = { volts_x, labels->y.voltage },
 		.shader_ptr = stagedraw.hud_text.shader,
 		.font_ptr = font,
+		.color = {},
 		.glyph_callback = {
 			draw_numeric_callback,
-			&(struct glyphcb_state) { &stagedraw.hud_text.color.inactive, &stagedraw.hud_text.color.active },
+			&(struct glyphcb_state) { stagedraw.hud_text.color.inactive, stagedraw.hud_text.color.active },
 		}
 	});
 
@@ -1486,7 +1521,7 @@ static void stage_draw_hud_text(struct labels_s* labels) {
 		.pos = { volts_x, labels->y.voltage },
 		.shader_ptr = stagedraw.hud_text.shader,
 		.font_ptr = font,
-		.color = &stagedraw.hud_text.color.dark,
+		.color = stagedraw.hud_text.color.dark,
 	});
 
 	// Graze value
@@ -1495,9 +1530,10 @@ static void stage_draw_hud_text(struct labels_s* labels) {
 		.pos = { 0, labels->y.graze },
 		.shader_ptr = stagedraw.hud_text.shader,
 		.font_ptr = font,
+		.color = {},
 		.glyph_callback = {
 			draw_numeric_callback,
-			&(struct glyphcb_state) { &stagedraw.hud_text.color.inactive, &stagedraw.hud_text.color.active  },
+			&(struct glyphcb_state) { stagedraw.hud_text.color.inactive, stagedraw.hud_text.color.active  },
 		}
 	});
 
@@ -1551,6 +1587,7 @@ void stage_draw_bottom_text(void) {
 		.align = ALIGN_RIGHT,
 		.pos = { SCREEN_W, SCREEN_H - 0.5 * text_height(font, buf, 0) },
 		.font_ptr = font,
+		.color = RGB(1, 1, 1),
 	});
 
 	ReplayState *rst = &global.replay.input;
@@ -1564,7 +1601,7 @@ void stage_draw_bottom_text(void) {
 		x += text_draw(buf, &(TextParams) {
 			.pos = { x, y },
 			.font_ptr = font,
-			.color = &stagedraw.hud_text.color.inactive,
+			.color = stagedraw.hud_text.color.inactive,
 		});
 
 		if(rst->play.desync_frame >= 0) {
@@ -1616,13 +1653,13 @@ void stage_draw_bottom_text(void) {
 		x += text_draw("Avg DPS: ", &(TextParams) {
 			.pos = { x, y },
 			.font_ptr = font,
-			.color = &stagedraw.hud_text.color.inactive,
+			.color = stagedraw.hud_text.color.inactive,
 		});
 
 		text_draw(buf, &(TextParams) {
 			.pos = { x, y },
 			.font_ptr = font,
-			.color = &stagedraw.hud_text.color.active,
+			.color = stagedraw.hud_text.color.active,
 		});
 
 		r_shader("graph");
@@ -1763,7 +1800,7 @@ void stage_draw_hud(void) {
 			.alpha = 1,
 			.spacing = spacing,
 			.color = {
-				.fill = color_mul(RGBA(1, 1, 1, 1), &labels.lb_baseclr),
+				.fill = color_mul(RGBA(1, 1, 1, 1), labels.lb_baseclr),
 				.back = RGBA(0, 0, 0, 0.5),
 				.frag = RGBA(0.5, 0.5, 0.6, 0.5),
 			}
@@ -1778,9 +1815,9 @@ void stage_draw_hud(void) {
 			.alpha = 1,
 			.spacing = spacing,
 			.color = {
-				.fill = color_mul(RGBA(1, 1, 1, 1), &labels.lb_baseclr),
-				.back = color_mul(RGBA(0, 0, 0, 0.5), &labels.lb_baseclr),
-				.frag = color_mul(RGBA(0.5, 0.5, 0.6, 0.5), &labels.lb_baseclr),
+				.fill = color_mul(RGBA(1, 1, 1, 1), labels.lb_baseclr),
+				.back = color_mul(RGBA(0, 0, 0, 0.5), labels.lb_baseclr),
+				.frag = color_mul(RGBA(0.5, 0.5, 0.6, 0.5), labels.lb_baseclr),
 			}
 		});
 
@@ -1789,10 +1826,11 @@ void stage_draw_hud(void) {
 
 	// Difficulty indicator
 	r_draw_sprite(&(SpriteParams) {
-		.sprite_ptr = res_sprite(difficulty_sprite_name(global.diff)),
+		.sprite = res_sprite(difficulty_sprite_name(global.diff)),
 		.pos = { HUD_EFFECTIVE_WIDTH * 0.5, 400 },
 		.scale.both = 0.6,
-		.shader_ptr = res_shader("sprite_default"),
+		.shader = res_shader("sprite_default"),
+		.color = RGB(1, 1, 1),
 	});
 
 	// Power/Item/Voltage icons
@@ -1801,41 +1839,44 @@ void stage_draw_hud(void) {
 
 	r_draw_sprite(&(SpriteParams) {
 		.pos = { 2, labels.y.power + 2 },
-		.sprite_ptr = res_sprite("item/power"),
-		.shader_ptr = res_shader("sprite_default"),
+		.sprite = res_sprite("item/power"),
+		.shader = res_shader("sprite_default"),
 		.color = RGBA(0, 0, 0, 0.5),
 	});
 
 	r_draw_sprite(&(SpriteParams) {
 		.pos = { 0, labels.y.power },
-		.sprite_ptr = res_sprite("item/power"),
-		.shader_ptr = res_shader("sprite_default"),
+		.sprite = res_sprite("item/power"),
+		.shader = res_shader("sprite_default"),
+		.color = RGB(1, 1, 1),
 	});
 
 	r_draw_sprite(&(SpriteParams) {
 		.pos = { 2, labels.y.value + 2 },
-		.sprite_ptr = res_sprite("item/point"),
-		.shader_ptr = res_shader("sprite_default"),
+		.sprite = res_sprite("item/point"),
+		.shader = res_shader("sprite_default"),
 		.color = RGBA(0, 0, 0, 0.5),
 	});
 
 	r_draw_sprite(&(SpriteParams) {
 		.pos = { 0, labels.y.value },
-		.sprite_ptr = res_sprite("item/point"),
-		.shader_ptr = res_shader("sprite_default"),
+		.sprite = res_sprite("item/point"),
+		.shader = res_shader("sprite_default"),
+		.color = RGB(1, 1, 1),
 	});
 
 	r_draw_sprite(&(SpriteParams) {
 		.pos = { 2, labels.y.voltage + 2 },
-		.sprite_ptr = res_sprite("item/voltage"),
-		.shader_ptr = res_shader("sprite_default"),
+		.sprite = res_sprite("item/voltage"),
+		.shader = res_shader("sprite_default"),
 		.color = RGBA(0, 0, 0, 0.5),
 	});
 
 	r_draw_sprite(&(SpriteParams) {
 		.pos = { 0, labels.y.voltage },
-		.sprite_ptr = res_sprite("item/voltage"),
-		.shader_ptr = res_shader("sprite_default"),
+		.sprite = res_sprite("item/voltage"),
+		.shader = res_shader("sprite_default"),
+		.color = RGB(1, 1, 1),
 	});
 
 	r_mat_mv_pop();
@@ -1853,12 +1894,29 @@ void stage_draw_hud(void) {
 		r_color(RGBA_MUL_ALPHA(0.3, 0.6, 0.7, 0.7 * extraspell_alpha));
 
 		Font *font = res_font("big");
+		Color shadow_color = RGBA_MUL_ALPHA(0.3, 0.6, 0.7, 0.7 * extraspell_alpha);
 
 		// TODO: replace this with a shader
-		text_draw(_("Voltage        \n    Overdrive!"), &(TextParams) { .pos = {  1,  1 }, .font_ptr = font, .align = ALIGN_CENTER });
-		text_draw(_("Voltage        \n    Overdrive!"), &(TextParams) { .pos = { -1, -1 }, .font_ptr = font, .align = ALIGN_CENTER });
-		r_color4(extraspell_alpha, extraspell_alpha, extraspell_alpha, extraspell_alpha);
-		text_draw(_("Voltage        \n    Overdrive!"), &(TextParams) { .pos = {  0,  0 }, .font_ptr = font, .align = ALIGN_CENTER });
+		text_draw(_("Voltage        \n    Overdrive!"), &(TextParams) {
+			.pos = {  1,  1 },
+			.font_ptr = font,
+			.align = ALIGN_CENTER,
+			.color = shadow_color,
+		});
+
+		text_draw(_("Voltage        \n    Overdrive!"), &(TextParams) {
+			.pos = { -1, -1 },
+			.font_ptr = font,
+			.align = ALIGN_CENTER,
+			.color = shadow_color,
+		});
+
+		text_draw(_("Voltage        \n    Overdrive!"), &(TextParams) {
+			.pos = {  0,  0 },
+			.font_ptr = font,
+			.align = ALIGN_CENTER,
+			.color = RGBA_MUL_ALPHA(1, 1, 1, extraspell_alpha),
+		});
 
 		r_mat_mv_pop();
 		r_state_pop();
@@ -1877,8 +1935,8 @@ void stage_draw_hud(void) {
 			red = 0;
 
 		r_draw_sprite(&(SpriteParams) {
-			.sprite_ptr = res_sprite("boss_indicator"),
-			.shader_ptr = res_shader("sprite_default"),
+			.sprite = res_sprite("boss_indicator"),
+			.shader = res_shader("sprite_default"),
 			.pos = { VIEWPORT_X+re(global.boss->pos), 590 },
 			.color = RGBA(1 - red, 1 - red, 1 - red, 1 - red),
 		});
@@ -1897,8 +1955,8 @@ void stage_draw_hud(void) {
 		Sprite *bg = res_sprite("part/smoke");
 
 		SpriteParams sp = {
-			.sprite_ptr = bg,
-			.shader_ptr = res_shader("sprite_default"),
+			.sprite = bg,
+			.shader = res_shader("sprite_default"),
 			.color = RGBA(0.1, 0.1, 0.2, 0.07),
 		};
 
@@ -1926,6 +1984,7 @@ void stage_draw_hud(void) {
 			.shader_ptr = res_shader("text_demo"),
 			.shader_params = &(ShaderCustomParams) { global.frames / 60.0f },
 			.pos.as_cmplx = pos,
+			.color = RGB(1, 1, 1),
 		});
 	}
 }

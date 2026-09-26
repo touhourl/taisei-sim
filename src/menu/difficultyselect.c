@@ -30,7 +30,7 @@ static void update_difficulty_menu(MenuData *menu) {
 		e->drawdata += 0.2 * ((i == menu->cursor) - e->drawdata);
 	});
 
-	color_approach(&diff_color, difficulty_color(menu->cursor + D_Easy), 0.1);
+	diff_color = color_approach(diff_color, difficulty_color(menu->cursor + D_Easy), 0.1);
 }
 
 MenuData* create_difficulty_menu(uint32_t mask) {
@@ -74,8 +74,7 @@ void draw_difficulty_menu(MenuData *menu) {
 	draw_main_menu_bg(menu, 0, 0, 0.05, "menu/mainmenubg", "stage1/cirnobg");
 	draw_menu_title(menu, _("Select Difficulty"));
 
-	Color c = diff_color;
-	r_color(color_mul(&c, RGBA(0.07, 0.07, 0.07, 0.7)));
+	r_color(color_mul(diff_color, RGBA(0.07, 0.07, 0.07, 0.7)));
 
 	r_mat_mv_push();
 	r_mat_mv_translate(SCREEN_W/2, SCREEN_H/2,0);
@@ -85,7 +84,6 @@ void draw_difficulty_menu(MenuData *menu) {
 	r_shader_standard_notex();
 	r_draw_quad();
 	r_mat_mv_pop();
-	r_color3(1,1,1);
 
 	r_shader("text_default");
 
@@ -93,6 +91,7 @@ void draw_difficulty_menu(MenuData *menu) {
 	float shake = 0.3*amp*menu->frames;
 	text_draw(dynarray_get(&menu->entries, menu->cursor).name, &(TextParams) {
 		.pos = { 120+15*menu->drawdata[0]+amp*sin(shake), -12+amp*cos(1.57*shake) },
+		.color = RGB(1, 1, 1),
 	});
 
 	r_shader("sprite_default");
@@ -100,7 +99,7 @@ void draw_difficulty_menu(MenuData *menu) {
 	dynarray_foreach(&menu->entries, int i, MenuEntry *e, {
 		float scale = 0.5 + e->drawdata - 0.2 * (e->action == NULL);
 		r_draw_sprite(&(SpriteParams) {
-			.sprite_ptr = res_sprite(difficulty_sprite_name(D_Easy + i)),
+			.sprite = res_sprite(difficulty_sprite_name(D_Easy + i)),
 			.pos = { 0, 240 * tanh(0.7 * (i - menu->drawdata[0])) },
 			.color = RGBA(scale, scale, scale, scale),
 			.scale.both = scale,

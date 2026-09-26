@@ -119,7 +119,7 @@ static void stage1_water_render_reflections(void) {
 static void stage1_water_render_waves(float pos) {
 	r_shader_ptr(stage1_draw_data->water_shader);
 	r_uniform_float("time", 0.5f * global.frames / (float)FPS);
-	r_uniform_vec4_rgba("water_color", &water_color);
+	r_uniform_vec4_rgba("water_color", water_color);
 	r_uniform_vec2("wave_offset", 0, pos / 2400.0f);
 	r_uniform_sampler("water_noisetex", "fractal_noise");
 	r_mat_mv_push();
@@ -143,7 +143,7 @@ static void stage1_water_draw(vec3 pos) {
 	r_shader_standard_notex();
 	r_mat_mv_push();
 	r_mat_mv_scale(10000, 900000, 1);
-	r_color(&water_color);
+	r_color(water_color);
 	r_draw_quad();
 	r_mat_mv_pop();
 	r_state_pop();
@@ -198,7 +198,7 @@ static void stage1_smoke_draw(vec3 pos) {
 	r_mat_mv_scale(3.5*2, 2*1.5, 1);
 	r_mat_mv_rotate(global.frames * spin + M_PI * 2 * sin(pos[1]*321.23), 0, 0, 1);
 	r_draw_sprite(&(SpriteParams) {
-		.sprite_ptr = res_sprite("stage1/fog"),
+		.sprite = res_sprite("stage1/fog"),
 		.color = RGBA(0.6 * o, 0.7 * o, 0.8 * o, o * 0.5),
 	});
 	r_mat_mv_pop();
@@ -259,8 +259,8 @@ static void stage1_waterplants_draw(vec3 pos) {
 	r_mat_tex_scale(0.5, 1, 1);
 	r_mat_tex_translate(tile, 0, 0);
 	r_draw_sprite(&(SpriteParams) {
-		.sprite_ptr = &spr,
-		.shader_ptr = res_shader("sprite_default"),
+		.sprite = &spr,
+		.shader = res_shader("sprite_default"),
 		.flip.x = floathash(pos[1] * 231544.213) & 1,
 		.flip.y = floathash(pos[1] * 941233.513) & 1,
 		.color = RGBA(0.5*a, 0.4*a, 0.5*a, 0.5*a),
@@ -316,7 +316,7 @@ static void stage1_snow_draw(vec3 pos) {
 	r_mat_mv_translate(pos[0] + 2200 * sawtooth(h1), pos[1] + 10 * sawtooth(h2), 1200 - 1200 * height);
 	r_mat_mv_rotate(M_PI/2, -1, 0, 0);
 	r_draw_sprite(&(SpriteParams) {
-		.sprite_ptr = res_sprite("part/smoothdot"),
+		.sprite = res_sprite("part/smoothdot"),
 		.color = RGBA(o, o, o, 0),
 	});
 	r_mat_mv_pop();

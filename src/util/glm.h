@@ -15,6 +15,7 @@
 
 // IWYU pragma: always_keep
 
+
 DIAGNOSTIC(push)
 DIAGNOSTIC(ignored "-Wdeprecated-declarations")
 #include <cglm/cglm.h>  // IWYU pragma: export

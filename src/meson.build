@@ -179,7 +179,7 @@ if stages_live_reload
     endif
 
     taisei_stages = shared_module('taisei-stages', stages_src, version_deps,
-        dependencies : taisei_deps,
+        dependencies : taisei_deps_linkwhole + taisei_deps,
         c_args : taisei_c_args,
         c_pch : 'pch/taisei_pch.h',
         build_by_default : true,
@@ -374,7 +374,7 @@ if host_machine.system() == 'emscripten'
     endif
 
     libtaisei = static_library(taisei_basename, taisei_src, taisei_main_src, version_deps,
-        dependencies : taisei_deps,
+        dependencies : taisei_deps_linkwhole + taisei_deps,
         c_pch : 'pch/taisei_pch.h',
         c_args : [em_common_args, taisei_c_args],
         install : meson_link_whole_is_broken,
@@ -403,6 +403,7 @@ if host_machine.system() == 'emscripten'
             '--pre-js', em_preamble,
             '--post-js', em_postamble,
             get_option('c_args'),
+            taisei_link_args,
             get_option('c_link_args'),
             em_common_args,
             em_link_args,
@@ -420,9 +421,10 @@ if host_machine.system() == 'emscripten'
 elif host_machine.system() == 'nx'
     taisei_elf_name = '@0@.elf'.format(taisei_basename)
     taisei_elf = executable(taisei_elf_name, taisei_src, taisei_main_src, version_deps,
-        dependencies : taisei_deps,
+        dependencies : taisei_deps_linkwhole + taisei_deps,
         c_args : taisei_c_args,
         c_pch : 'pch/taisei_pch.h',
+        link_args : taisei_link_args,
         install : is_debug_build,
         install_dir : bindir,
         override_options: ['strip=false'],
@@ -471,7 +473,7 @@ else
 
     libtaisei_dep = declare_dependency(
         compile_args : taisei_c_args,
-        dependencies : taisei_deps,
+        dependencies : taisei_deps_linkwhole + taisei_deps,
         include_directories : include_directories('.'),
         link_with : libtaisei,
     )
@@ -485,6 +487,7 @@ else
         install : true,
         install_dir : bindir,
         export_dynamic : stages_live_reload,
+        link_args : taisei_link_args,
     )
 
     if host_machine.system() == 'darwin'

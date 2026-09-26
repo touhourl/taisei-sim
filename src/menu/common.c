@@ -220,9 +220,9 @@ void draw_menu_selector(float x, float y, float w, float h, float t) {
 	r_mat_mv_scale(w / bg->w, h / bg->h, 1);
 	r_mat_mv_rotate(t * 2 * DEG2RAD, 0, 0, 1);
 	r_draw_sprite(&(SpriteParams) {
-		.sprite_ptr = bg,
+		.sprite = bg,
 		.color = RGBA(0, 0, 0, 0.5 * (1 - transition.fade)),
-		.shader_ptr = res_shader("sprite_default"),
+		.shader = res_shader("sprite_default"),
 	});
 	r_mat_mv_pop();
 }
@@ -257,13 +257,13 @@ void draw_menu_list(MenuData *m, float x, float y, void (*draw)(MenuEntry*, int,
 		Color clr;
 
 		if(e->action == NULL) {
-			clr = *RGBA_MUL_ALPHA(0.5, 0.5, 0.5, 0.5*o);
+			clr = RGBA_MUL_ALPHA(0.5, 0.5, 0.5, 0.5*o);
 		} else {
 			float ia = 1-a;
-			clr = *RGBA_MUL_ALPHA(0.9 + ia * 0.1, 0.6 + ia * 0.4, 0.2 + ia * 0.8, (0.7 + 0.3 * a)*o);
+			clr = RGBA_MUL_ALPHA(0.9 + ia * 0.1, 0.6 + ia * 0.4, 0.2 + ia * 0.8, (0.7 + 0.3 * a)*o);
 		}
 
-		r_color(&clr);
+		r_color(clr);
 
 		if(draw && i < m->entries.num_elements-1) {
 			draw(e, i, m->entries.num_elements, userdata);
@@ -271,6 +271,7 @@ void draw_menu_list(MenuData *m, float x, float y, void (*draw)(MenuEntry*, int,
 			text_draw(_(e->name), &(TextParams) {
 				.pos = { 20 - e->drawdata, 20*i },
 				.shader_ptr = text_shader,
+				.color = clr,
 			});
 		}
 	});

@@ -219,14 +219,14 @@ void draw_char_menu(MenuData *menu) {
 
 		SpriteParams portrait_params = {
 			.pos = { SCREEN_W/2 + 240 + 320 * pofs, SCREEN_H - spr->h * 0.5 },
-			.sprite_ptr = spr,
-			.shader_ptr = res_shader("sprite_default"),
+			.sprite = spr,
+			.shader = res_shader("sprite_default"),
 			.color = RGBA(pbrightness, pbrightness, pbrightness, 1),
 			// .flip.x = true,
 		};
 
 		r_draw_sprite(&portrait_params);
-		portrait_params.sprite_ptr = res_sprite(face);
+		portrait_params.sprite = res_sprite(face);
 		r_draw_sprite(&portrait_params);
 
 		r_mat_mv_push();
@@ -288,12 +288,15 @@ void draw_char_menu(MenuData *menu) {
 
 		float o = 1-fabs(f - shotidx);
 		float al = 0.2+o;
+
+		Color clr;
+
 		if(shot == current_subshot && shot == PLR_SHOT_A) {
-			r_color4(0.9*al, 0.6*al, 0.2*al, 1*al);
+			clr = RGBA(0.9*al, 0.6*al, 0.2*al, 1*al);
 		} else if(shot == current_subshot && shot == PLR_SHOT_B) {
-			r_color4(0.2*al, 0.6*al, 0.9*al, 1*al);
+			clr = RGBA(0.2*al, 0.6*al, 0.9*al, 1*al);
 		} else {
-			r_color4(al, al, al, al);
+			clr = RGBA(al, al, al, al);
 		}
 
 		char buf[64];
@@ -304,14 +307,15 @@ void draw_char_menu(MenuData *menu) {
 			.align = ALIGN_CENTER,
 			.pos = { 0, y},
 			.shader_ptr = res_shader("text_default"),
+			.color = clr,
 		});
 
 		if(shot == current_subshot) {
-			r_color4(o, o, o, o);
 			text_draw_wrapped(_(mode->description), DESCRIPTION_WIDTH, &(TextParams) {
 				.align = ALIGN_CENTER,
 				.pos = { 0, y + 30 },
 				.shader_ptr = res_shader("text_default"),
+				.color = { o, o, o, o },
 			});
 		}
 	}
@@ -323,14 +327,14 @@ void draw_char_menu(MenuData *menu) {
 	r_shader("sprite_default");
 
 	r_draw_sprite(&(SpriteParams) {
-		.sprite_ptr = res_sprite("menu/arrow"),
+		.sprite = res_sprite("menu/arrow"),
 		.pos = { 30, SCREEN_H/3+10 },
 		.color = RGBA(o, o, o, o),
 		.scale = { 0.5, 0.7 },
 	});
 
 	r_draw_sprite(&(SpriteParams) {
-		.sprite_ptr = res_sprite("menu/arrow"),
+		.sprite = res_sprite("menu/arrow"),
 		.pos = { 30 + 340, SCREEN_H/3+10 },
 		.color = RGBA(o, o, o, o),
 		.scale = { 0.5, 0.7 },

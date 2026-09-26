@@ -48,7 +48,6 @@
 	CONFIGDEF_KEYBINDING(KEY_IDDQD,             "key_iddqd",            SDL_SCANCODE_Q) \
 	CONFIGDEF_KEYBINDING(KEY_HAHAIWIN,          "key_skipstage",        SDL_SCANCODE_E) \
 	CONFIGDEF_KEYBINDING(KEY_PAUSE,             "key_pause",            SDL_SCANCODE_PAUSE) \
-	CONFIGDEF_KEYBINDING(KEY_NOBACKGROUND,      "key_nobackground",     SDL_SCANCODE_LALT) \
 	CONFIGDEF_KEYBINDING(KEY_POWERUP,           "key_powerup",          SDL_SCANCODE_2) \
 	CONFIGDEF_KEYBINDING(KEY_POWERDOWN,         "key_powerdown",        SDL_SCANCODE_1) \
 	CONFIGDEF_KEYBINDING(KEY_FPSLIMIT_OFF,      "key_fpslimit_off",     SDL_SCANCODE_RSHIFT) \
@@ -59,6 +58,7 @@
 	CONFIGDEF_KEYBINDING(KEY_RELOAD_RESOURCES,  "key_reload_resources", SDL_SCANCODE_F5) \
 	CONFIGDEF_KEYBINDING(KEY_QUICKSAVE,         "key_quicksave",        SDL_SCANCODE_F4) \
 	CONFIGDEF_KEYBINDING(KEY_QUICKLOAD,         "key_quickload",        SDL_SCANCODE_F3) \
+	CONFIGDEF_KEYBINDING(KEY_TIMESTOP,          "key_timestop",         SDL_SCANCODE_SLASH) \
 
 
 #define GPKEYDEFS \

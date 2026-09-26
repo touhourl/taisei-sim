@@ -1283,14 +1283,7 @@ static float _text_ucs4_draw(Font *font, size_t ucs4len, const uint32_t ucs4text
 
 	text_ucs4_bbox(font, ucs4len, ucs4text, 0, &bbox);
 
-	Color color;
-
-	if(params->color == NULL) {
-		// XXX: sprite batch code defaults this to RGB(1, 1, 1)
-		color = *r_color_current();
-	} else {
-		color = *params->color;
-	}
+	Color color = params->color;
 
 	ShaderCustomParams shader_params;
 
@@ -1364,7 +1357,7 @@ static float _text_ucs4_draw(Font *font, size_t ucs4len, const uint32_t ucs4text
 
 		SpriteInstanceAttribs attribs;
 		attribs.rgba = color;
-		attribs.custom = shader_params;
+		attribs.custom.as_array[0] = shader_params;
 
 		FloatOffset ofs = spr->padding.offset;
 		FloatExtent imgdims = spr->extent;
@@ -1376,8 +1369,8 @@ static float _text_ucs4_draw(Font *font, size_t ucs4len, const uint32_t ucs4text
 		glm_translate_to(mat_texture, (vec3) {
 			g_x - imgdims.w * 0.5f,
 			g_y + overlay.h - imgdims.h * 0.5f
-		}, attribs.tex_transform);
-		glm_scale(attribs.tex_transform, (vec3) { imgdims.w, imgdims.h, 1.0 });
+		}, attribs.custom_mat_aligned);
+		glm_scale(attribs.custom_mat_aligned, (vec3) { imgdims.w, imgdims.h, 1.0 });
 
 		glm_translate_to(mat_model, (vec3) { g_x, g_y }, attribs.mv_transform);
 		glm_scale(attribs.mv_transform, (vec3) { imgdims.w, imgdims.h, 1.0 } );

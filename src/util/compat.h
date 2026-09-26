@@ -9,13 +9,50 @@
 #pragma once
 #include "taisei.h"
 
+#ifdef TAISEI_BUILDCONF_USE_OPENLIBM
+	#undef __BSD_VISIBLE
+	#define __BSD_VISIBLE 1
+
+	#include <openlibm_complex.h>
+	#include <openlibm_math.h>
+
+	typedef double double_t;
+	typedef float float_t;
+
+	// Defense against bad headers that pull in system math.h
+	#ifndef	_MATH_H			/* glibc, musl */
+	#define	_MATH_H		1
+	#endif
+
+	#ifndef	_MATH_H_		/* mingw, BSDs */
+	#define	_MATH_H_	1
+	#endif
+
+	#ifndef	__MATH_H__		/* macOS */
+	#define	__MATH_H__	1
+	#endif
+
+	#ifndef	__MATH_H		/* some obscure embedded crap  */
+	#define	__MATH_H	1
+	#endif
+
+	#ifndef _INC_MATH		/* msvc/ucrt apparently, not that we support that crap */
+	#define _INC_MATH	1
+	#endif
+
+	#ifndef	MATH_H			/* unknown/just in case */
+	#define	MATH_H		1
+	#endif
+#else
+	#include <complex.h>       // IWYU pragma: export
+	#include <math.h>          // IWYU pragma: export
+#endif
+
 // Common standard library headers
-#include <complex.h>       // IWYU pragma: export
 #include <ctype.h>         // IWYU pragma: export
 #include <float.h>         // IWYU pragma: export
 #include <inttypes.h>      // IWYU pragma: export
 #include <limits.h>        // IWYU pragma: export
-#include <math.h>          // IWYU pragma: export
 #include <stdalign.h>      // IWYU pragma: export
 #include <stdbool.h>       // IWYU pragma: export
 #include <stddef.h>        // IWYU pragma: export
@@ -274,6 +311,14 @@ typedef _Complex double cmplx;
 		__attribute__ ((designated_init))
 #else
 	#define attr_designated_init
+#endif
+
+// Struct field must be explicitly initialized
+#if __has_attribute(require_explicit_initialization)
+	#define attr_explicit_init \
+		__attribute__ ((require_explicit_initialization))
+#else
+	#define attr_explicit_init
 #endif
 
 // Function returns a pointer that can't alias any other pointer when the function returns.

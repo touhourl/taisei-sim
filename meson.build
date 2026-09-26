@@ -125,12 +125,28 @@ taisei_c_args = [
     '-Wunreachable-code',
     '-Wunreachable-code-loop-increment',
 
+    # NOTE: These are important for replay consistency
     '-fexcess-precision=standard',
-    '-fmerge-all-constants',
+    '-ffp-contract=off',
+    '-fno-fp-int-builtin-inexact',
     '-fno-math-errno',
+    '-fno-rounding-math',
     '-fno-signaling-nans',
     '-fno-trapping-math',
+
+    '-fmerge-all-constants',
     '-fzero-init-padding-bits=all',
+
+    # GCC is stupid (fix undefined reference error with LTO)
+    '-fno-builtin-sincos',
+    '-fno-builtin-sincosf',
+]
+
+taisei_link_args = [
+    # sincosf is not directly referenced, but the compiler may generate calls to it as an optimization
+    '-Wl,-u,sincosf',
+    # Give sincos the same treatment, just in case it gets inlined into its one explicit call site
+    '-Wl,-u,sincos',
 ]
 
 taisei_conversion_c_args = [
@@ -166,6 +182,7 @@ elif deprecation_warnings == 'ignore'
 endif
 
 taisei_c_args = cc.get_supported_arguments(taisei_c_args)
+taisei_link_args = cc.get_supported_link_arguments(taisei_link_args)
 
 foreach arglist : [
         taisei_conversion_c_args,
@@ -202,7 +219,26 @@ dep_crypto      = dependency('libcrypto',                           required : g
 dep_gamemode    = dependency('gamemode',                            required : opt_gamemode)
 dep_libunibreak = dependency('libunibreak',                         required : true)
 
-dep_m           = cc.find_library('m', required : false)
+# Vendoring our own, version-pinned openlibm is important for replay consistency.
+# Please don't patch this out. Otherwise some replays will not be portable across systems.
+use_openlibm = true
+
+if use_openlibm
+    # Our openlibm dependency links a static library as --whole-archive
+    # This is the only reliable way I've found to make it actually intercept the math calls
+    # It's important to only specify it once per target, otherwise you get duplicate symbol conflicts
+    dep_m_linkwhole = subproject('openlibm').get_variable('openlibm_dep')
+    dep_m = dep_m_linkwhole.partial_dependency(
+        compile_args : true,
+        includes     : true,
+        link_args    : false,
+        links        : false,
+        sources      : false,
+    )
+else
+    dep_m = cc.find_library('m', required : false)
+    dep_m_linkwhole = declare_dependency()
+endif
 
 dep_basisu_transcoder = subproject('basis_universal').get_variable('basisu_transcoder_dep')
 dep_koishi      = subproject('koishi').get_variable('koishi_dep')
@@ -225,7 +261,11 @@ taisei_deps = [
     dep_webp,
     dep_zlib,
     dep_zstd,
-    # don't add glad here
+    # NOTE: don't add glad here
+]
+
+taisei_deps_linkwhole = [
+    dep_m_linkwhole
 ]
 
 if host_machine.system() == 'windows'
@@ -266,17 +306,20 @@ have_timespec =     cc.has_function('timespec_get')
 
 assert(have_vla and have_complex, 'Your C implementation needs to support complex numbers and variable-length arrays.')
 
+config.set('TAISEI_BUILDCONF_USE_OPENLIBM', use_openlibm)
 config.set('TAISEI_BUILDCONF_HAVE_TIMESPEC', have_timespec)
 config.set('TAISEI_BUILDCONF_HAVE_INT128', cc.sizeof('__int128') == 16)
 config.set('TAISEI_BUILDCONF_HAVE_LONG_DOUBLE', cc.sizeof('long double') > 8)
 config.set('TAISEI_BUILDCONF_HAVE_POSIX', have_posix)
-config.set('TAISEI_BUILDCONF_HAVE_SINCOS', cc.has_function('sincos', dependencies : dep_m))
 
-use_gnu_funcs = false
-gnu_funcs = ['sincos', 'strtok_r', 'memrchr', 'memmem']
+have_sincos = use_openlibm or cc.has_function('sincos', dependencies : dep_m)
+config.set('TAISEI_BUILDCONF_HAVE_SINCOS', have_sincos)
+
+use_gnu_funcs = have_sincos and not use_openlibm
+gnu_funcs = ['strtok_r', 'memrchr', 'memmem']
 
 foreach f : gnu_funcs
-    have = cc.has_function(f, dependencies : dep_m)
+    have = cc.has_function(f)
     config.set('TAISEI_BUILDCONF_HAVE_@0@'.format(f.to_upper()), have)
     use_gnu_funcs = have or use_gnu_funcs
 endforeach

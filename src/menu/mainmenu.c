@@ -165,8 +165,8 @@ void draw_main_menu(MenuData *menu) {
 	float rotfac = (1 - pow(menu_fade(menu), 2.0));
 
 	r_draw_sprite(&(SpriteParams) {
-		.sprite_ptr = res_sprite("menu/logo"),
-		.shader_ptr = res_shader("sprite_default"),
+		.sprite = res_sprite("menu/logo"),
+		.shader = res_shader("sprite_default"),
 		.pos = { SCREEN_W/2, SCREEN_H/2 },
 		.rotation.vector = { 0, -1, 0 },
 		.rotation.angle = max(0, M_PI/1.5 - min(M_PI/1.5, rot) * rotfac),
@@ -180,16 +180,19 @@ void draw_main_menu(MenuData *menu) {
 	float o = 0.7;
 
 	dynarray_foreach(&menu->entries, int i, MenuEntry *e, {
+		Color clr;
+
 		if(e->action == NULL) {
-			r_color4(0.2 * o, 0.3 * o, 0.5 * o, o);
+			clr = RGBA(0.2 * o, 0.3 * o, 0.5 * o, o);
 		} else {
 			float a = 1 - e->drawdata;
-			r_color4(o, min(1, 0.7 + a) * o, min(1, 0.4 + a) * o, o);
+			clr = RGBA(o, min(1, 0.7 + a) * o, min(1, 0.4 + a) * o, o);
 		}
 
 		text_draw(_(e->name), &(TextParams) {
 			.pos = { 50 - 15 * e->drawdata, 20 * (i - menu->drawdata[1]) },
 			.font = "standard",
+			.color = clr,
 		});
 	});
 
@@ -221,7 +224,7 @@ void draw_main_menu(MenuData *menu) {
 			continue;
 
 		r_draw_sprite(&(SpriteParams) {
-			.sprite_ptr = res_sprite("part/petal"),
+			.sprite = res_sprite("part/petal"),
 			.color = RGBA(1, 1, 1, 0),
 			.pos = { posx, posy },
 			.scale.both = 0.2,

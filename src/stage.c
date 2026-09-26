@@ -522,6 +522,16 @@ static void stage_do_quickload(StageFrameState *fstate) {
 static bool stage_input_handler_gameplay(SDL_Event *event, void *arg) {
 	StageFrameState *fstate = NOT_NULL(arg);
 
+#ifdef DEBUG
+	if(event->type == SDL_EVENT_KEY_DOWN && event->key.scancode == config_get_int(CONFIG_KEY_TIMESTOP)) {
+		if(!event->key.repeat) {
+			fstate->paused = !fstate->paused;
+		}
+
+		return false;
+	}
+#endif
+
 	if(event->type == SDL_EVENT_KEY_DOWN && !event->key.repeat && is_quicksave_allowed()) {
 		if(event->key.scancode == config_get_int(CONFIG_KEY_QUICKSAVE)) {
 			stage_do_quicksave(fstate, false);
@@ -994,6 +1004,8 @@ static void stage_replay_sync(StageFrameState *fstate) {
 	}
 }
 
+static void process_input(StageFrameState *fstate);
+
 static LogicFrameAction stage_logic_frame(void *arg) {
 	StageFrameState *fstate = arg;
 	StageInfo *stage = fstate->stage;
@@ -1029,6 +1041,8 @@ static LogicFrameAction stage_logic_frame(void *arg) {
 		if(!global.is_simulation) {
 			events_poll(NULL, 0);
 		}
+	} else if(fstate->paused) {
+		process_input(fstate);
 	} else {
 		cosched_run_tasks(&fstate->sched);
 		update_all_sfx();

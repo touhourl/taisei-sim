@@ -9,16 +9,15 @@
 #include "spells.h"
 
 static void wriggle_fstorm_proj_draw(Projectile *p, int time, ProjDrawRuleArgs args) {
-	SpriteParamsBuffer spbuf;
-	SpriteParams sp = projectile_sprite_params(p, &spbuf);
+	SpriteParams sp = projectile_sprite_params(p);
 	r_draw_sprite(&sp);
 
 	float f = 1 - min(time / 60.0f, 1.0f);
 	if(f > 0) {
 		// TODO: Maybe convert this into a particle effect?
-		sp.sprite_ptr = res_sprite("proj/ball");
+		sp.sprite = res_sprite("proj/ball");
 		sp.scale.as_cmplx *= f;
-		spbuf.color.a = 0;
+		sp.color.a = 0;
 		r_draw_sprite(&sp);
 	}
 }
@@ -45,7 +44,7 @@ TASK(fstorm_bullet, { BoxedBoss boss; ProjPrototype *proto; cmplx pos; cmplx vel
 		}
 
 		real f = t / (real)ARGS.convert_time;
-		p->color = *RGB(0.3 + 0.7 * (1 - pow(1 - f, 4)), 0.3 + 0.3 * f * f, 0.7 - 0.7 * f);
+		p->color = RGB(0.3 + 0.7 * (1 - pow(1 - f, 4)), 0.3 + 0.3 * f * f, 0.7 - 0.7 * f);
 	}
 
 	Boss *boss = NOT_NULL(ENT_UNBOX(ARGS.boss));

@@ -170,7 +170,7 @@ DEFINE_ENTITY_TYPE(Projectile, {
 
 typedef struct ProjArgs {
 	ProjPrototype *proto;
-	const Color *color;
+	Color color;
 	const char *sprite;
 	Sprite *sprite_ptr;
 	const char *shader;
@@ -208,6 +208,29 @@ struct ProjPrototype {
 	void *private;
 };
 
+// Custom per-sprite parameters for the sprite_bullet shader
+typedef union ProjShaderParams {
+	SpriteShaderCustomParams as_generic;
+	struct {
+		struct {
+			float opacity;
+			float shadow_threshold;
+			float shadow_opacity;
+			float shadow_brightness;
+		};							// customVec0
+		Color core_color;			// customVec1
+		Color shifted_color0;		// customVec2
+		Color shifted_color1;		// customVec3
+		// NOTE: if you extend this to use customVec4,
+		// make sure to edit sprite_bullet.vert.glsl so that it's passed on!
+	};
+} ProjShaderParams;
+
+static_assert(sizeof(ProjShaderParams) == sizeof(SpriteShaderCustomParams));
+
+// NOTE: opacity slot is shared with some other shaders (like sprite_particle)
+static_assert(offsetof(ProjShaderParams, opacity) == offsetof(ProjShaderParams, as_generic.vec[0]));
+
 #define PP(name) \
 	extern ProjPrototype _pp_##name; \
 	extern ProjPrototype *pp_##name; \
@@ -241,6 +264,10 @@ bool projectile_in_viewport(Projectile *proj) attr_nonnull_all;
 void process_projectiles(ProjectileList *projlist, bool collision) attr_hot attr_nonnull_all;
 bool projectile_is_clearable(Projectile *p) attr_nonnull_all;
 
+cmplx projectile_size(Projectile *p) attr_nonnull_all;
+cmplx projectile_graze_size(Projectile *p) attr_nonnull_all;
+real projectile_cull_distance(Projectile *proj) attr_nonnull_all;
+
 Projectile *spawn_projectile_collision_effect(Projectile *proj) attr_nonnull_all;
 Projectile *spawn_projectile_clear_effect(Projectile *proj) attr_nonnull_all;
 Projectile *spawn_projectile_highlight_effect(Projectile *proj) attr_nonnull_all;
@@ -265,8 +292,8 @@ void petal_explosion(int n, cmplx pos);
 void projectiles_preload(ResourceGroup *rg);
 void projectiles_free(void);
 
-cmplx projectile_graze_size(Projectile *p);
 float projectile_timeout_factor(Projectile *p);
 int projectile_time(Projectile *p);
 
-SpriteParams projectile_sprite_params(Projectile *proj, SpriteParamsBuffer *spbuf);
+ProjShaderParams projectile_shader_params(Projectile *proj);
+SpriteParams projectile_sprite_params(Projectile *proj);

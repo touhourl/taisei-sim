@@ -88,45 +88,39 @@ static cmplx fairy_visual_pos(const Enemy *e, const FairyVisual *visual) {
 	return visual_pos(enemy_visual_pos(e), &visual->base);
 }
 
-static SpriteParams fairy_make_sprite_params(
-	const Enemy *fairy,
-	const FairyVisual *visual,
-	int time,
-	SpriteParamsBuffer *out_spbuf
-) {
+static SpriteParams fairy_make_sprite_params(const Enemy *fairy, const FairyVisual *visual, int time) {
 	auto ani = visual->base.ani;
 	const char *seqname = !fairy->moving ? "main" : (fairy->dir ? "left" : "right");
 	Sprite *spr = animation_get_frame(ani, get_ani_sequence(ani, seqname), time);
 
 	float o = visual->base.opacity;
 	float b = 1.0f - visual->base.fakepos.blendfactor;
-	out_spbuf->color = *RGBA(o*b, o*b, o*b, o);
-	out_spbuf->shader_params.vector[0] = visual->summon.progress;
-	out_spbuf->shader_params.vector[1] = visual->summon.cloak;
-	out_spbuf->shader_params.vector[2] = visual->summon.mask_ofs_bits.val;
-	out_spbuf->shader_params.vector[3] = global.frames / 60.0f;
 
 	return (SpriteParams) {
-		.color = &out_spbuf->color,
-		.sprite_ptr = spr,
+		.color = RGBA(o*b, o*b, o*b, o),
+		.sprite = spr,
 		.pos.as_cmplx = fairy_visual_pos(fairy, visual),
 		.scale = { visual->base.scale, visual->base.scale },
-		.shader_ptr = visual->shader,
+		.shader = visual->shader,
 		.aux_textures = { visual->noise_texture },
-		.shader_params = &out_spbuf->shader_params,
+		.shader_params.vec = {
+			visual->summon.progress,
+			visual->summon.cloak,
+			visual->summon.mask_ofs_bits.val,
+			global.frames / 60.0f,
+		}
 	};
 }
 
 static void fairy_draw(Enemy *fairy, const FairyVisual *visual, int time) {
-	SpriteParamsBuffer spbuf;
-	SpriteParams sp = fairy_make_sprite_params(fairy, visual, time, &spbuf);
+	SpriteParams sp = fairy_make_sprite_params(fairy, visual, time);
 	r_draw_sprite(&sp);
 }
 
 static void fairy_draw_loop(Enemy *e, const FairyVisual *visual) {
-	for(int t = 0;; ++t) {
+	for(;;) {
 		WAIT_EVENT_OR_DIE(&e->events.draw);
-		fairy_draw(e, visual, t);
+		fairy_draw(e, visual, global.frames - e->birthtime);
 	}
 }
 
@@ -163,7 +157,7 @@ TASK(fairy_circle, {
 
 	Projectile *circle = TASK_BIND(PARTICLE(
 		.sprite_ptr = ARGS.sprite,
-		.color = &ARGS.color,
+		.color = ARGS.color,
 		.flags = PFLAG_NOMOVE | PFLAG_REQUIREDPARTICLE | PFLAG_MANUALANGLE | PFLAG_NOAUTOREMOVE,
 		.layer = LAYER_NODRAW,
 	));
@@ -230,7 +224,7 @@ TASK(fairy_flame_emitter, {
 			ENT_ARRAY_ADD(&parts, PARTICLE(
 				.sprite_ptr = spr,
 				.pos = spawn_pos,
-				.color = &ARGS.color,
+				.color = ARGS.color,
 				.draw_rule = pdraw_timeout_scalefade(2+2*I, 0.5+2*I, 1, 0),
 				.angle = M_PI/2 + rng_sreal() * M_PI/16,
 				.timeout = 50,
@@ -284,7 +278,7 @@ TASK(fairy_stardust_emitter, {
 			ENT_ARRAY_ADD(&parts, PARTICLE(
 				.sprite_ptr = spr,
 				.pos = pos,
-				.color = &ARGS.color,
+				.color = ARGS.color,
 				.draw_rule = pdraw_timeout_scalefade_exp(0.1 * (1+I), 2 * (1+I), 1, 0, 2),
 				.angle = vrng_angle(rng[0]),
 				.timeout = 180,
@@ -309,7 +303,7 @@ TASK(fairy_weak, {
 
 	INVOKE_SUBTASK(fairy_circle, ENT_BOX(e), &visual,
 		.sprite = ARGS.fairy.circle_sprite,
-		.color = *RGB(1, 1, 1),
+		.color = RGB(1, 1, 1),
 		.spin_rate = 10 * DEG2RAD,
 		.scale_base = 0.8f,
 		.scale_osc_ampl = 1.0f / 6.0f,
@@ -364,7 +358,7 @@ TASK(fairy_big, {
 
 	INVOKE_SUBTASK(fairy_circle, ENT_BOX(e), &visual,
 		.sprite = ARGS.fairy.circle_sprite,
-		.color = *RGB(1, 1, 1),
+		.color = RGB(1, 1, 1),
 		.spin_rate = 10 * DEG2RAD,
 		.scale_base = 0.8f,
 		.scale_osc_ampl = 1.0f / 6.0f,
@@ -373,7 +367,7 @@ TASK(fairy_big, {
 
 	INVOKE_SUBTASK(fairy_flame_emitter, ENT_BOX(e), &visual,
 		.period = 5,
-		.color = *RGBA(0.0, 0.2, 0.3, 0.0)
+		.color = RGBA(0.0, 0.2, 0.3, 0.0)
 	);
 
 	fairy_draw_loop(e, &visual);
@@ -406,7 +400,7 @@ TASK(fairy_huge, {
 
 	INVOKE_SUBTASK(fairy_circle, ENT_BOX(e), &visual,
 		.sprite = ARGS.fairy.circle_sprite,
-		.color = *RGBA(1, 1, 1, 0.95),
+		.color = RGBA(1, 1, 1, 0.95),
 		.spin_rate = 5 * DEG2RAD,
 		.scale_base = 0.85f,
 		.scale_osc_ampl = 0.1f,
@@ -415,12 +409,12 @@ TASK(fairy_huge, {
 
 	INVOKE_SUBTASK(fairy_flame_emitter, ENT_BOX(e), &visual,
 		.period = 6,
-		.color = *RGBA(0.0, 0.2, 0.3, 0.0)
+		.color = RGBA(0.0, 0.2, 0.3, 0.0)
 	);
 
 	INVOKE_SUBTASK(fairy_flame_emitter, ENT_BOX(e), &visual,
 		.period = 6,
-		.color = *RGBA(0.3, 0.0, 0.2, 0.0)
+		.color = RGBA(0.3, 0.0, 0.2, 0.0)
 	);
 
 	fairy_draw_loop(e, &visual);
@@ -453,7 +447,7 @@ TASK(fairy_super, {
 
 	INVOKE_SUBTASK(fairy_circle, ENT_BOX(e), &visual,
 		.sprite = ARGS.fairy.circle_sprite,
-		.color = *RGBA(1, 1, 1, 0.6),
+		.color = RGBA(1, 1, 1, 0.6),
 		.spin_rate = 5 * DEG2RAD,
 		.scale_base = 0.9f,
 		.scale_osc_ampl = 0.1f,
@@ -462,12 +456,12 @@ TASK(fairy_super, {
 
 	INVOKE_SUBTASK(fairy_flame_emitter, ENT_BOX(e), &visual,
 		.period = 5,
-		.color = *RGBA(0.2, 0.0, 0.3, 0.0)
+		.color = RGBA(0.2, 0.0, 0.3, 0.0)
 	);
 
 	INVOKE_SUBTASK(fairy_stardust_emitter, ENT_BOX(e), &visual,
 		.period = 15,
-		.color = *RGBA(0.0, 0.0, 0.0, 0.8)
+		.color = RGBA(0.0, 0.0, 0.0, 0.8)
 	);
 
 	fairy_draw_loop(e, &visual);
@@ -499,23 +493,15 @@ typedef struct SwirlParams {
 	SwirlHandle *out;
 } SwirlParams;
 
-static SpriteParams swirl_make_sprite_prams(
-	const Enemy *swirl,
-	const SwirlVisual *visual,
-	int time,
-	SpriteParamsBuffer *spbuf
-) {
+static SpriteParams swirl_make_sprite_prams(const Enemy *swirl, const SwirlVisual *visual, int time) {
 	float o = visual->base.opacity;
 	float b = 1.0f - visual->base.fakepos.blendfactor;
 
-	spbuf->color = *RGBA(o*b*b, o*b*b, o*b*b, o);
-	spbuf->shader_params = (ShaderCustomParams) { 1.0f };
-
 	return (SpriteParams) {
-		.color = &spbuf->color,
-		.sprite_ptr = visual->base.spr,
-		.shader_ptr = visual->shader,
-		.shader_params = &spbuf->shader_params,
+		.color = RGBA(o*b*b, o*b*b, o*b*b, o),
+		.sprite = visual->base.spr,
+		.shader = visual->shader,
+		.shader_params.vec = { 1.0f },
 		.pos.as_cmplx = visual_pos(enemy_visual_pos(swirl), &visual->base),
 		.rotation.angle = time * 10 * DEG2RAD,
 		.scale = { visual->base.scale, visual->base.scale },
@@ -523,15 +509,14 @@ static SpriteParams swirl_make_sprite_prams(
 }
 
 static void swirl_draw(Enemy *swirl, const SwirlVisual *visual, int time) {
-	SpriteParamsBuffer spbuf;
-	SpriteParams sp = swirl_make_sprite_prams(swirl, visual, time, &spbuf);
+	SpriteParams sp = swirl_make_sprite_prams(swirl, visual, time);
 	r_draw_sprite(&sp);
 }
 
 static void swirl_draw_loop(Enemy *e, const SwirlVisual *visual) {
-	for(int t = 0;; ++t) {
+	for(;;) {
 		WAIT_EVENT_OR_DIE(&e->events.draw);
-		swirl_draw(e, visual, t);
+		swirl_draw(e, visual, global.frames - e->birthtime);
 	}
 }
 
@@ -658,10 +643,7 @@ FairyHandle ecls_fairy_summon(FairyHandle fairy, int duration) {
 
 	Projectile *circle = NOT_NULL(ENT_UNBOX(visual->circle));
 	Color circle_basecolor = circle->color;
-	Color circle_spawncolor = *color_mul(
-		COLOR_COPY(&circle_basecolor),
-		RGBA(2, 2, 2, 0)
-	);
+	Color circle_spawncolor = color_mul(circle_basecolor, RGBA(2, 2, 2, 0));
 
 	float fairy_delay = 0.1f;
 
@@ -678,11 +660,7 @@ FairyHandle ecls_fairy_summon(FairyHandle fairy, int duration) {
 		}
 
 		if(LIKELY(circle = ENT_UNBOX(visual->circle))) {
-			circle->color = *color_lerp(
-				COLOR_COPY(&circle_spawncolor),
-				&circle_basecolor,
-				glm_ease_quad_in(f)
-			);
+			circle->color = color_lerp(circle_spawncolor, circle_basecolor, glm_ease_quad_in(f));
 		}
 
 		if(i == duration) {

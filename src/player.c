@@ -205,7 +205,7 @@ void player_draw_overlay(Player *plr) {
 		float o = 1 - smoothstep(start + ofs, end + ofs, t);
 
 		r_draw_sprite(&(SpriteParams) {
-			.sprite_ptr = char_spr,
+			.sprite = char_spr,
 			.pos = { char_spr->w * 0.5 + VIEWPORT_W * powf(1 - char_in, 4 - i * 0.3f) - i + char_xofs, VIEWPORT_H - char_spr->h * 0.5f },
 			.color = color_mul_scalar(color_add(RGBA(0.2, 0.2, 0.2, 0), RGBA(i==1, i==2, i==3, 0)), char_opacity_in * (1 - char_in * o) * o),
 			.flip.x = true,
@@ -214,7 +214,7 @@ void player_draw_overlay(Player *plr) {
 	}
 
 	r_draw_sprite(&(SpriteParams) {
-		.sprite_ptr = char_spr,
+		.sprite = char_spr,
 		.pos = { char_spr->w * 0.5f + VIEWPORT_W * powf(1 - char_in, 4) + char_xofs, VIEWPORT_H - char_spr->h * 0.5f },
 		.color = RGBA_MUL_ALPHA(1, 1, 1, char_opacity * min(1, char_in * 2) * (1 - min(1, (1 - char_out) * 5))),
 		.flip.x = true,
@@ -231,7 +231,7 @@ void player_draw_overlay(Player *plr) {
 	Sprite *spell_spr = res_sprite("spell");
 
 	r_draw_sprite(&(SpriteParams) {
-		.sprite_ptr = spell_spr,
+		.sprite = spell_spr,
 		.pos = { spell_x, spell_y },
 		.color = color_mul_scalar(RGBA(1, 1, 1, spell_in * 0.5), spell_opacity),
 		.scale.both = 3 - 2 * (1 - pow(1 - spell_in, 3)) + 2 * (1 - spell_out),
@@ -265,14 +265,13 @@ static void ent_draw_player(EntityInterface *ent) {
 		return;
 	}
 
-	ShaderCustomParams shader_params = { 1.0f };
 	ShaderProgram *shader = res_shader("sprite_particle");
 
 	if(plr->focus_circle_alpha) {
 		r_draw_sprite(&(SpriteParams) {
-			.sprite_ptr = res_sprite("fairy_circle"),
-			.shader_ptr = shader,
-			.shader_params = &shader_params,
+			.sprite = res_sprite("fairy_circle"),
+			.shader = shader,
+			.shader_params.vec = { 1.0f },
 			.rotation.angle = DEG2RAD * global.frames * 10,
 			.color = RGBA_MUL_ALPHA(1, 1, 1, 0.2 * plr->focus_circle_alpha),
 			.pos = { re(plr->pos), im(plr->pos) },
@@ -283,17 +282,17 @@ static void ent_draw_player(EntityInterface *ent) {
 
 	if(!player_is_vulnerable(plr)) {
 		float f = 0.3*sin(0.1*global.frames);
-		c = *RGBA_MUL_ALPHA(1.0+f, 1.0, 1.0-f, 0.7+f);
+		c = RGBA_MUL_ALPHA(1.0+f, 1.0, 1.0-f, 0.7+f);
 	} else {
-		c = *RGBA_MUL_ALPHA(1.0, 1.0, 1.0, 1.0);
+		c = RGBA_MUL_ALPHA(1.0, 1.0, 1.0, 1.0);
 	}
 
 	r_draw_sprite(&(SpriteParams) {
-		.sprite_ptr = aniplayer_get_frame(&plr->ani),
-		.shader_ptr = shader,
-		.shader_params = &shader_params,
+		.sprite = aniplayer_get_frame(&plr->ani),
+		.shader = shader,
+		.shader_params.vec = { 1.0f },
 		.pos.as_cmplx = plr->pos,
-		.color = &c,
+		.color = c,
 	});
 }
 
@@ -312,7 +311,7 @@ static void player_draw_indicators(EntityInterface *ent) {
 		float scale = 1.0f + trans_factor;
 
 		SpriteParams sp = {
-			.sprite_ptr = indicators->sprites.focus,
+			.sprite = indicators->sprites.focus,
 			.rotation.angle = rot_speed,
 			.color = RGBA_MUL_ALPHA(1, 1, 1, focus_opacity),
 			.pos.as_cmplx = pos,
@@ -467,12 +466,12 @@ static void _powersurge_trail_draw(Projectile *p, float t, float cmul) {
 	float s = 1 + (2 + 0.5 * psin((t+global.frames*1.23)/5.0)) * nt * nt;
 
 	r_draw_sprite(&(SpriteParams) {
-		.sprite_ptr = p->sprite,
+		.sprite = p->sprite,
 		.scale.both = s,
 		.pos = { re(p->pos), im(p->pos) },
 		.color = color_mul_scalar(RGBA(0.8, 0.1 + 0.2 * psin((t+global.frames)/5.0), 0.1, 0.0), 0.5 * (1 - nt) * cmul),
-		.shader_params = &(ShaderCustomParams){{ -2 * nt * nt }},
-		.shader_ptr = p->shader,
+		.shader_params.vec = { -2 * nt * nt },
+		.shader = p->shader,
 	});
 }
 
@@ -511,7 +510,7 @@ TASK(powersurge_player_particles, { BoxedPlayer plr; }) {
 		if(t % 6 == 0 && plr->powersurge.bonus.discharge_range > 0) {
 			real scale = 2 * plr->powersurge.bonus.discharge_range / field_sprite->w;
 			real angle = rng_angle();
-			Color *color = color_mul_scalar(rng_bool() ? RGBA(1.5, 0.5, 0.0, 0.1) : RGBA(0.0, 0.5, 1.5, 0.1), 0.25);
+			Color color = color_mul_scalar(rng_bool() ? RGBA(1.5, 0.5, 0.0, 0.1) : RGBA(0.0, 0.5, 1.5, 0.1), 0.25);
 
 			ENT_ARRAY_COMPACT(&fields);
 
@@ -940,8 +939,7 @@ static void player_death_effect_draw_sprite(Projectile *p, int t, ProjDrawRuleAr
 		return;
 	}
 
-	SpriteParamsBuffer spbuf;
-	SpriteParams sp = projectile_sprite_params(p, &spbuf);
+	SpriteParams sp = projectile_sprite_params(p);
 	sp.scale.x *= sx;
 	sp.scale.y *= sy;
 	sp.rotation.angle = 0;
@@ -950,13 +948,13 @@ static void player_death_effect_draw_sprite(Projectile *p, int t, ProjDrawRuleAr
 
 TASK(player_death_blastspam, { cmplx pos; }) {
 	for(int i = 0; i < 12; ++i) {
-		RNG_ARRAY(R, 4);
+		RNG_ARRAY(R, 5);
 		PARTICLE(
 			.proto = pp_blast,
 			.pos = ARGS.pos + vrng_range(R[0], 2, 3) * vrng_dir(R[1]),
 			.color = RGBA(0.15, 0.2, 0.5, 0),
 			.timeout = i + vrng_range(R[2], 10, 14),
-			.draw_rule = pdraw_timeout_scalefade(0, 1, 1, 0),
+			.draw_rule = pdraw_timeout_scalefade(0, vrng_range(R[4], 2, 3), 1, 0),
 			.angle = vrng_angle(R[3]),
 			.flags = PFLAG_NOREFLECT,
 			.layer = LAYER_OVERLAY,
@@ -1018,6 +1016,18 @@ void player_death(Player *plr) {
 	INVOKE_TASK_AFTER(&p->events.killed, player_death_blastspam, p->pos);
 
 	plr->deathtime = global.frames + floor(player_property(plr, PLR_PROP_DEATHBOMB_WINDOW));
+
+	PARTICLE(
+		.sprite = "blast_huge_halo",
+		.pos = plr->pos,
+		.size = 1+I,
+		.timeout = plr->deathtime - global.frames,
+		.draw_rule = pdraw_timeout_scalefade(5, 0.01, 1, 1),
+		.color = RGBA(2, 0.5, 0.25, 0),
+		.flags = PFLAG_NOREFLECT | PFLAG_REQUIREDPARTICLE | PFLAG_MANUALANGLE,
+		.layer = LAYER_OVERLAY,
+		.angle = rng_angle(),
+	);
 
 	if(player_is_powersurge_active(plr)) {
 		player_cancel_powersurge(plr);
@@ -1395,7 +1405,7 @@ void player_fix_input(Player *plr, ReplayState *rpy_out) {
 	}
 }
 
-void player_graze(Player *plr, cmplx pos, int pts, int effect_intensity, const Color *color) {
+void player_graze(Player *plr, cmplx pos, int pts, int effect_intensity, Color color) {
 	if(++plr->graze >= PLR_MAX_GRAZE) {
 		log_debug("Graze counter overflow");
 		plr->graze = PLR_MAX_GRAZE;
@@ -1406,25 +1416,25 @@ void player_graze(Player *plr, cmplx pos, int pts, int effect_intensity, const C
 	player_add_points(plr, pts, pos);
 	play_sfx("graze");
 
-	Color *c = COLOR_COPY(color);
-	color_add(c, RGBA(1, 1, 1, 1));
-	color_mul_scalar(c, 0.5);
-	c->a = 0;
+	Color c = color_add(color, RGBA(0.1, 0.1, 0.1, 0));
+	c.a = 0;
 
 	for(int i = 0; i < effect_intensity; ++i) {
+		cmplx dir = cnormalize(pos - (plr->pos + rng_dir() * 5)) * I;
 		RNG_ARRAY(R, 4);
 		PARTICLE(
 			.sprite = "graze",
 			.color = c,
 			.pos = pos,
 			.draw_rule = pdraw_timeout_scalefade_exp(1, 0, 1, 0, 2),
-			.move = move_asymptotic_simple(0.2 * vrng_range(R[0], 1, 6) * vrng_dir(R[1]), 16 * (1 + 0.5 * vrng_sreal(R[3]))),
-			.timeout = vrng_range(R[2], 4, 29),
+			.move = move_asymptotic_simple(
+				0.2 * vrng_range(R[0], 2, 3) * dir * vrng_sign(R[1]), 12 * (1 + 0.75 * vrng_sreal(R[3]))),
+			.timeout = vrng_range(R[2], 40, 58),
 			.flags = PFLAG_NOREFLECT,
 			// .layer = LAYER_PARTICLE_LOW,
 		);
 
-		color_mul_scalar(c, 0.4);
+		c = color_mul_scalar(c, 0.4);
 	}
 
 	spawn_items(pos, ITEM_POWER_MINI, 1);
@@ -1551,17 +1561,17 @@ static void add_score_text(Player *plr, cmplx location, uint points, bool is_piv
 	if(is_piv) {
 		importance = sqrt(min(points/500.0, 1));
 		a = lerp(0.4, 1.0, importance);
-		c = *color_lerp(RGB(0.5, 0.8, 1.0), RGB(1.0, 0.3, 1.0), importance);
+		c = color_lerp(RGB(0.5, 0.8, 1.0), RGB(1.0, 0.3, 1.0), importance);
 		timings.lifetime = 35 + 10 * importance;
 	} else {
 		importance = clamp(0.25 * (double)points / (double)plr->point_item_value, 0, 1);
 		a = clamp(0.5 + 0.5 * cbrtf(importance), 0, 1);
-		c = *color_lerp(RGB(1.0, 0.8, 0.4), RGB(0.4, 1.0, 0.3), importance);
+		c = color_lerp(RGB(1.0, 0.8, 0.4), RGB(0.4, 1.0, 0.3), importance);
 		timings.lifetime = 25 + 20 * importance;
 	}
 
 	a *= config_get_float(CONFIG_SCORETEXT_ALPHA);
-	color_mul_scalar(&c, a);
+	c = color_mul_scalar(c, a);
 
 	if(!stxt) {
 		if(c.a < 1e-4) {
@@ -1569,7 +1579,7 @@ static void add_score_text(Player *plr, cmplx location, uint points, bool is_piv
 		}
 
 		stxt = stagetext_add(
-			NULL, location, ALIGN_CENTER, res_font("small"), &c,
+			NULL, location, ALIGN_CENTER, res_font("small"), c,
 			timings.delay, timings.lifetime, timings.fadeintime, timings.fadeouttime
 		);
 

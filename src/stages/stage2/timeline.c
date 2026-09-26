@@ -22,7 +22,7 @@ TASK(spinshot_fairy_attack_spawn_projs, {
 	cmplx *proj_origins;
 	int spawn_period;
 	cmplx initial_offset;
-	const Color *color;
+	Color color;
 }) {
 	Enemy *e = TASK_BIND(ARGS.e);
 	int count = ARGS.projs->capacity;
@@ -59,10 +59,9 @@ TASK(spinshot_fairy_attack, {
 	cmplx activated_vel_multiplier;
 	cmplx activated_accel_multiplier;
 	cmplx activated_retention_multiplier;
-	const Color *color;
+	Color color;
 }) {
 	int count = ARGS.count;
-	Color color = *ARGS.color;
 
 	DECLARE_ENT_ARRAY(Projectile, projs, count);
 	cmplx proj_origins[count];
@@ -74,7 +73,7 @@ TASK(spinshot_fairy_attack, {
 			proj_origins,
 			ARGS.spawn_period,
 			ARGS.initial_offset,
-			&color
+			ARGS.color
 		)
 	);
 
@@ -138,9 +137,10 @@ TASK(spinshot_fairy_attack, {
 	}
 }
 
-TASK(spinshot_fairy, { cmplx pos; MoveParams move_enter; MoveParams move_exit; }) {
-	Enemy *e = TASK_BIND(espawn_big_fairy(ARGS.pos, ITEMS(.points = 5, .power = 4)));
-	e->move = ARGS.move_enter;
+TASK(spinshot_fairy, { cmplx pos; MoveParams move_exit; }) {
+	auto fairy = ecls_spawn_big_fairy(ARGS.pos, ITEMS(.points = 5, .power = 4));
+	auto e = TASK_BIND(fairy.entity);
+	ecls_fairy_summon(fairy, 120);
 
 	int count = difficulty_value(8, 10, 12, 14);
 	int charge_time = difficulty_value(100, 80, 60, 60);
@@ -157,14 +157,14 @@ TASK(spinshot_fairy, { cmplx pos; MoveParams move_enter; MoveParams move_exit; }
 	INVOKE_SUBTASK(common_charge,
 		.time = charge_time + waves * wave_period,
 		.anchor = &e->pos,
-		.color = *RGBA(1.0, 0.1, 0.1, 0.0),
+		.color = RGBA(1.0, 0.1, 0.1, 0.0),
 		.sound = COMMON_CHARGE_SOUNDS
 	);
 
 	INVOKE_SUBTASK_DELAYED(5, common_charge,
 		.time = charge_time + waves * wave_period,
 		.anchor = &e->pos,
-		.color = *RGBA(0.1, 0.1, 1.0, 0.0)
+		.color = RGBA(0.1, 0.1, 1.0, 0.0)
 	);
 
 	cmplx dir = rng_dir();
@@ -217,7 +217,7 @@ TASK(starcaller_fairy, { cmplx pos; MoveParams move_exit; }) {
 	INVOKE_SUBTASK_DELAYED(summon_time - precharge_time, common_charge, {
 		.time = charge_time + precharge_time,
 		.pos = e->pos,
-		.color = *RGBA(0.5, 0.2, 1.0, 0.0),
+		.color = RGBA(0.5, 0.2, 1.0, 0.0),
 		.sound = COMMON_CHARGE_SOUNDS,
 	});
 
@@ -787,9 +787,8 @@ DEFINE_EXTERN_TASK(stage2_timeline) {
 
 	STAGE_BOOKMARK_DELAYED(1100 + time_ofs, post-midboss-ideal);
 
-	INVOKE_TASK_DELAYED(1360 + time_ofs, spinshot_fairy,
-		.pos = VIEWPORT_W/2,
-		.move_enter = move_towards(0, VIEWPORT_W/2+VIEWPORT_H/3*I, 0.02),
+	INVOKE_TASK_DELAYED(1140 + time_ofs, spinshot_fairy,
+		.pos = VIEWPORT_W/2+VIEWPORT_H/3*I,
 		.move_exit = move_accelerated(0, 0.1*I)
 	);
 
@@ -823,21 +822,18 @@ DEFINE_EXTERN_TASK(stage2_timeline) {
 	STAGE_BOOKMARK_DELAYED(400, twin-spinshots);
 
 	if(global.diff > D_Normal) {
-		INVOKE_TASK_DELAYED(420, spinshot_fairy,
-			.pos = 0,
-			.move_enter = move_towards(0, VIEWPORT_W/3+VIEWPORT_H/3*I, 0.02),
+		INVOKE_TASK_DELAYED(300, spinshot_fairy,
+			.pos = VIEWPORT_W/3+VIEWPORT_H/3*I,
 			.move_exit = move_accelerated(0, 0.1*I)
 		);
 
-		INVOKE_TASK_DELAYED(480, spinshot_fairy,
-			.pos = VIEWPORT_W,
-			.move_enter = move_towards(0, 2*VIEWPORT_W/3+VIEWPORT_H/3*I, 0.02),
+		INVOKE_TASK_DELAYED(360, spinshot_fairy,
+			.pos = 2*VIEWPORT_W/3+VIEWPORT_H/3*I,
 			.move_exit = move_accelerated(0, 0.1*I)
 		);
 	} else {
-		INVOKE_TASK_DELAYED(420, spinshot_fairy,
-			.pos = VIEWPORT_W/2,
-			.move_enter = move_towards(0, VIEWPORT_W/2+VIEWPORT_H/3*I, 0.02),
+		INVOKE_TASK_DELAYED(300, spinshot_fairy,
+			.pos = VIEWPORT_W/2+VIEWPORT_H/3*I,
 			.move_exit = move_accelerated(0, 0.1*I)
 		);
 	}

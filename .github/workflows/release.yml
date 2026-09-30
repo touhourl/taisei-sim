@@ -28,6 +28,7 @@ jobs:
       - name: Package
         shell: bash
         run: |
+          apt update && apt install zip
           set -euo pipefail
 
           rm -rf tmp dist

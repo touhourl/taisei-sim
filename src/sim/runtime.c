@@ -4,7 +4,6 @@
 #include "runtime.h"
 
 #include "audio/audio.h"
-#include "resource/bgm.h"
 #include "cli.h"
 #include "config.h"
 #include "coroutine/coroutine.h"
@@ -92,6 +91,7 @@ TaiseiSimResult taisei_sim_runtime_init(const TaiseiSimGlobalConfig *config, cha
     }
 
     config_load();
+    config_set_int(CONFIG_AUTO_SURGE, false);
 
     if(!SDL_Init(SDL_INIT_EVENTS)) {
         snprintf(error, error_size, "SDL_Init failed: %s", SDL_GetError());
@@ -122,7 +122,6 @@ TaiseiSimResult taisei_sim_runtime_init(const TaiseiSimGlobalConfig *config, cha
     i18n_init();
     dynstage_init_monitoring();
     audio_init();
-    bgm_init();
     res_post_init();
     gamepad_init();
     progress_load();
@@ -146,7 +145,6 @@ void taisei_sim_runtime_shutdown(void) {
     stage_objpools_shutdown();
     gamemode_shutdown();
     taskmgr_global_shutdown();
-    bgm_shutdown();
     audio_shutdown();
     r_models_shutdown();
     r_sprite_batch_shutdown();

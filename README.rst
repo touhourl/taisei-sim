@@ -49,7 +49,8 @@ We recommend fetching the source code using ``git``:
 Compiling Source Code
 ^^^^^^^^^^^^^^^^^^^^^
 
-Currently, only GNU/Linux is supported. You could build by simply type: 
+Currently, only GNU/Linux is supported. You could build by simply type:
+
 .. code:: sh
 
    make

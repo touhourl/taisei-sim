@@ -26,4 +26,3 @@ build:
 
 	meson compile -C "$(BUILD_DIR)"
 	meson install -C "$(BUILD_DIR)"
-

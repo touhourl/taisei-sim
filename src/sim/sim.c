@@ -43,6 +43,7 @@ struct TaiseiSim {
     bool replay_initialized;
     uint32_t desired_buttons;
     uint32_t applied_buttons;
+    uint32_t pulse_buttons;
     uint64_t initial_seed;
     uint64_t start_time;
     double laser_sample_step;
@@ -691,6 +692,12 @@ static void sim_input_hook(void *userdata) {
         { TAISEI_SIM_ACTION_RIGHT, KEY_RIGHT },
         { TAISEI_SIM_ACTION_FOCUS, KEY_FOCUS },
         { TAISEI_SIM_ACTION_SHOT, KEY_SHOT },
+    };
+
+    static const struct {
+        uint32_t button;
+        KeyIndex key;
+    } pulses[] = {
         { TAISEI_SIM_ACTION_BOMB, KEY_BOMB },
         { TAISEI_SIM_ACTION_SPECIAL, KEY_SPECIAL },
     };
@@ -710,6 +717,13 @@ static void sim_input_hook(void *userdata) {
             mappings[i].key
         );
     }
+
+    for(size_t i = 0; i < sizeof(pulses) / sizeof(pulses[0]); ++i) {
+        if(sim->pulse_buttons & pulses[i].button) {
+            player_event(&global.plr, NULL, &global.replay.output, EV_PRESS, pulses[i].key);
+        }
+    }
+    sim->pulse_buttons = 0;
 
     PlrInputFlag continuous = 0;
     if(sim->desired_buttons & TAISEI_SIM_ACTION_UP) continuous |= INFLAG_UP;
@@ -1072,6 +1086,7 @@ TaiseiSimResult taisei_sim_reset(TaiseiSim *sim, const TaiseiSimEpisodeConfig *e
     stage_set_start_override(&override);
     sim->desired_buttons = 0;
     sim->applied_buttons = 0;
+    sim->pulse_buttons = 0;
     sim->initial_seed = episode->rng_seed;
     sim->start_time = override.start_time;
     sim->status = TAISEI_SIM_STATUS_RUNNING;
@@ -1114,7 +1129,8 @@ TaiseiSimResult taisei_sim_step(TaiseiSim *sim, const TaiseiSimAction *action, u
         return set_error(sim, TAISEI_SIM_ERROR_EPISODE_TERMINAL, "Episode is not running, no actions could be taken");
     }
 
-    sim->desired_buttons = action->buttons;
+    sim->desired_buttons = action->buttons & ~(TAISEI_SIM_ACTION_BOMB | TAISEI_SIM_ACTION_SPECIAL);
+    sim->pulse_buttons = action->buttons & (TAISEI_SIM_ACTION_BOMB | TAISEI_SIM_ACTION_SPECIAL);
     sim->recent_boss_damage = 0;
 
     for(uint32_t i = 0; i < frame_count && sim->episode_active; ++i) {
@@ -1137,6 +1153,7 @@ TaiseiSimResult taisei_sim_step(TaiseiSim *sim, const TaiseiSimAction *action, u
         }
     }
 
+    sim->pulse_buttons = 0;
     return TAISEI_SIM_OK;
 }
 

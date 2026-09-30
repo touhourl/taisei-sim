@@ -13,9 +13,6 @@ jobs:
     name: GNU/Linux x86_64
     runs-on: ubuntu-latest
 
-    container:
-      image: taiseiproject/linux-toolkit:20260804
-
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -23,12 +20,13 @@ jobs:
           fetch-depth: 0
 
       - name: Build
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE" && make
+        run: |
+          docker run --rm -v "$GITHUB_WORKSPACE:/workspace" -w /workspace taiseiproject/linux-toolkit:20260804 \
+            sh -c 'git config --global --add safe.directory /workspace && make'
 
       - name: Package
         shell: bash
         run: |
-          apt update && apt install zip
           set -euo pipefail
 
           rm -rf tmp dist
